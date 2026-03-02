@@ -18,7 +18,8 @@
       "Bash(npm run dev)",
       "Bash(taskkill //F //IM node.exe)",
       "Bash(npm install next-themes)",
-      "Bash(npx next build)"
+      "Bash(npx next build)",
+      "Bash(node -e \"const p = require\\(''./package.json''\\); console.log\\(''next:'', p.dependencies.next\\)\")"
     ]
   }
 }
