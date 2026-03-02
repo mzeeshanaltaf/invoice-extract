@@ -1,0 +1,262 @@
+Perform OCR:
+Triggers the core processing pipeline, which validates the uploaded file (PDF or Image), performs security hashing, extracts text using Mistral AI, and stores both the file and the resulting Markdown in the database.
+
+Request:
+curl --location 'https://n8n.zeeshanai.cloud/webhook/6a9405d6-dcaf-4cbf-b83d-04a4535610f1' \
+--form 'event_type="perform_ocr"' \
+--form 'user_id="user_id"' \
+--form 'file=@"/E:/Projects/n8n/Projects/Invoice Processing/Sample Documents/sample_invoice_1.png"'
+
+Header Authorization:
+key: x-api-key
+value: <InvoiceExtract API Key>
+
+Sample Response:
+{
+  "success": true,
+  "status": "DOCUMENT_PROCESSED",
+  "message": "Document processed successfully"
+} 
+
+-----------------------------------------------------
+Get User Analytics:
+Provides a detailed summary of activity for a specific user, including the total count of documents and pages processed, with a specific breakdown of PDF versus image counts.
+
+Request:
+curl --location 'https://n8n.zeeshanai.cloud/webhook/48a48758-6c73-4d34-8453-8a1378c297a3' \
+--data '{
+    "event_type": "get_analytics_per_user",
+    "user_id": "user_id"
+}'
+
+Header Authorization:
+key: x-api-key
+value: <InvoiceExtract API Key>
+
+Sample Response:
+[
+  {
+    "total_documents_processed": "3",
+    "total_pages_processed": "4",
+    "total_pdfs_processed": "1",
+    "total_images_processed": "2"
+  }
+]
+-----------------------------------------------------
+**Signup Credits**
+Assign 5 credits to user account during sign-up. 1 credit equates to processing of one page document.
+
+Request:
+curl --location 'https://n8n.zeeshanai.cloud/webhook/818c0107-078c-40c9-9761-c3f25eac49b0' \
+--data '{
+    "event_type": "signup_credits",
+    "user_id": "b0f97a7f-e8a1-db7a-14ff-64752da7e5c3"
+}'
+
+Header Authorization:
+key: x-api-key
+value: <InvoiceExtract API Key>
+
+Response:
+{
+  "success": true,
+  "status": "CREDITS_ASSIGNED",
+  "message": "Signup credits have been successfully added to your account"
+} 
+-----------------------------------------------------
+**Get Remaining Credit**
+Get the remaining credits available to the user.
+
+Header Authorization:
+key: x-api-key
+value: <InvoiceExtract API Key>
+
+Request:
+curl --location 'https://n8n.zeeshanai.cloud/webhook/818c0107-078c-40c9-9761-c3f25eac49b0' \
+--data '{
+    "event_type": "get_remaining_credit",
+    "user_id": "b0f97a7f-e8a1-db7a-14ff-64752da7e5c3"
+}'
+
+Response:
+
+[
+  {
+    "current_balance": 1
+  }
+]
+-----------------------------------------------------
+
+**Get Credit History**
+Get the credits history of the user.
+
+Header Authorization:
+key: x-api-key
+value: <InvoiceExtract API Key>
+
+Request:
+curl --location 'https://n8n.zeeshanai.cloud/webhook/818c0107-078c-40c9-9761-c3f25eac49b0' \
+--data '{
+    "event_type": "credit_history",
+    "user_id": "b0f97a7f-e8a1-db7a-14ff-64752da7e5c3"
+}'
+
+Response:
+[
+  {
+    "transaction_id": "4b9159e3-aa27-43c1-89fc-de71f9768cfe",
+    "user_id": "b0f97a7f-e8a1-db7a-14ff-64752da7e5c3",
+    "transaction_type": "signup_bonus",
+    "credits_delta": 5,
+    "reference_file_id": null,
+    "file_name_snapshot": null,
+    "description": "Free credits on signup",
+    "created_at": "2026-02-22T09:44:26.597Z"
+  },
+  {
+    "transaction_id": "d76659b4-b129-4c06-8a21-fa1488d37c79",
+    "user_id": "b0f97a7f-e8a1-db7a-14ff-64752da7e5c3",
+    "transaction_type": "document_processing",
+    "credits_delta": -1,
+    "reference_file_id": "fbf5a69c-d644-44c7-916f-67d1bb933192",
+    "file_name_snapshot": "sample_invoice_3.png",
+    "description": "1 pages processed",
+    "created_at": "2026-02-24T16:45:28.766Z"
+  }
+]
+-----------------------------------------------------
+
+**Get Markdown Contents**
+Retrieves the extracted Markdown text from previously processed documents, allowing users to access the structured text content derived from their invoices.
+
+Header Authorization:
+key: x-api-key
+value: <InvoiceExtract API Key>
+
+Request:
+curl --location 'https://n8n.zeeshanai.cloud/webhook/46ed3df3-414b-4e29-b1af-579c10db14cf' \
+--data '{
+    "event_type": "get_markdown_invoice_object",
+    "user_id": "b0f97a7f-e8a1-db7a-14ff-64752da7e5c3",
+    "file_id": "2c7778b5-6f01-48cd-aa1d-e0ac334b9cd0"
+}'
+
+Response:
+[
+  {
+    "markdown_text": "markdown text",
+    "file_name": "sample_invoice_2.jpg",
+    "file_size": "174886",
+    "num_pages": 1,
+    "invoice_object": {
+      "confidence": "high",
+      "description": "Contains explicit invoice elements: invoice number, date, bill-to party, itemized line items with quantities and prices, totals, and banking details.",
+      "invoice_data": {
+        "notes": "THANK YOU FOR YOUR BUSINESS! HAVE A NICE DAY!",
+        "client": {
+          "name": "Lorraine o. Wright",
+          "address": {
+            "city": "Sacramento",
+            "line1": "4141 Pearl Street",
+            "state": "CA",
+            "postal_code": ""
+          },
+          "contact": {
+            "email": "lorrainewright@mail.com",
+            "phone": "916-398-1161"
+          }
+        },
+        "issuer": {
+          "name": "Bolt On",
+          "address": {
+            "city": "Yakima",
+            "line1": "1025 Mudlick Road",
+            "state": "WA",
+            "postal_code": "98902"
+          },
+          "contact": {
+            "email": "info@bolton.com",
+            "phone": "509-575-3999",
+            "website": "www.bolton.com"
+          }
+        },
+        "due_date": null,
+        "financials": {
+          "tax": 0.49,
+          "currency": "USD",
+          "subtotal": 24.5,
+          "total_amount": 24.99,
+          "tax_rate_percent": 2
+        },
+        "issue_date": "2020-03-30",
+        "line_items": [
+          {
+            "amount": 4.5,
+            "quantity": 3,
+            "unit_price": 1.5,
+            "description": "Heart Planner Charm"
+          },
+          {
+            "amount": 9,
+            "quantity": 6,
+            "unit_price": 1.5,
+            "description": "Cute Cupcake Planner Charm"
+          },
+          {
+            "amount": 11,
+            "quantity": 4,
+            "unit_price": 2.75,
+            "description": "Kawaii Pineapple Keychain"
+          }
+        ],
+        "bank_details": {
+          "account_name": "Bolt On",
+          "account_number": "341507864861762"
+        },
+        "invoice_number": "0330-00012"
+      },
+      "detected_signals": [
+        "INVOICE NO",
+        "DATE",
+        "BILL TO",
+        "AMOUNT DUE",
+        "TOTAL"
+      ],
+      "is_invoice_related": true
+    },
+    "file_id": "0bda2cf9-45ca-4493-88b5-b71837e3e155"
+  }
+]
+-----------------------------------------------------
+
+**Get User Documents**
+Returns a comprehensive list of all files (PDFs and Images) uploaded by a specific user, including associated metadata and storage references.
+
+Header Authorization:
+key: x-api-key
+value: <InvoiceExtract API Key>
+
+Request:
+curl --location 'https://n8n.zeeshanai.cloud/webhook/46ed3df3-414b-4e29-b1af-579c10db14cf' \
+--data '{
+    "event_type": "get_user_documents",
+    "user_id": "b0f97a7f-e8a1-db7a-14ff-64752da7e5c3",
+    "file_id": "2c7778b5-6f01-48cd-aa1d-e0ac334b9cd0"
+}'
+
+Response:
+
+[{
+"file_id":"95a89240-5739-4708-a759-8db539079f42",
+"file_name": "sample_invoice_1.jpg",
+"mime_type": "image/jpeg",
+"file_size": "171794", 
+"file_base64": "base64 string"},
+{
+"file_id":"545dd0cd-0c4a-47f7-8fa4-2ae94e3a0a4d",
+"file_name": "sample_invoice_2.pdf",
+"mime_type": "application/pdf",
+"file_size": "171794", 
+"file_base64": "base64 string"}
+
+]
