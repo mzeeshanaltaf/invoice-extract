@@ -50,54 +50,79 @@ export interface UserDocument {
 
 /* ─── Invoice Object (structured extraction result) ────────────── */
 
-/**
- * Party (issuer or client) — flat structure from AI extraction.
- * `address` is a single string, contact fields are top-level.
- */
-export interface InvoiceParty {
-  name?: string;
-  address?: string;
-  email?: string;
+export interface InvoiceMetadata {
+  invoice_number?: string;
+  invoice_date?: string;
+  due_date?: string | null;
+  currency?: string;
+}
+
+export interface InvoiceAddress {
+  street?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
+}
+
+export interface InvoiceContact {
   phone?: string;
+  email?: string;
   website?: string;
 }
 
-export interface InvoiceTax {
-  rate?: number;
-  amount?: number;
+export interface InvoiceParty {
+  name?: string;
+  company_name?: string;
+  address?: InvoiceAddress;
+  contact?: InvoiceContact;
 }
 
 export interface InvoiceLineItem {
-  amount: number;
-  quantity: number;
-  unit_price: number;
+  line_number?: number;
+  item_code?: string;
   description: string;
+  quantity: number;
+  unit_of_measure?: string;
+  unit_price?: number;
+  discount?: number;
+  tax_rate?: number;
+  tax_amount?: number;
+  line_total?: number;
+}
+
+export interface InvoiceTotals {
+  subtotal?: number;
+  discount_total?: number;
+  tax_total?: number;
+  shipping_cost?: number;
+  other_charges?: number;
+  grand_total?: number;
+  amount_paid?: number;
+  balance_due?: number;
 }
 
 export interface InvoiceBankDetails {
-  account_name: string;
-  account_number: string;
+  bank_name?: string;
+  account_number?: string;
+  iban?: string;
+  swift_bic?: string;
 }
 
-/**
- * invoice_data — the actual shape returned by the n8n Mistral AI extraction.
- * All financial fields are top-level (not nested under a `financials` object).
- */
-export interface InvoiceData {
-  notes?: string;
-  client?: InvoiceParty;
-  issuer?: InvoiceParty;
-  tax?: InvoiceTax;
-  currency?: string;
-  subtotal?: number;
-  amount_due?: number;
-  total_amount?: number;
-  issue_date?: string;
-  due_date?: string | null;
-  line_items?: InvoiceLineItem[];
-  invoice_number?: string;
-  banking_details?: InvoiceBankDetails;
+export interface InvoicePaymentDetails {
+  payment_terms?: string;
+  payment_method?: string;
   bank_details?: InvoiceBankDetails;
+}
+
+export interface InvoiceData {
+  invoice_metadata?: InvoiceMetadata;
+  seller?: InvoiceParty;
+  buyer?: InvoiceParty;
+  line_items?: InvoiceLineItem[];
+  totals?: InvoiceTotals;
+  payment_details?: InvoicePaymentDetails;
+  notes?: string;
 }
 
 export interface InvoiceObject {

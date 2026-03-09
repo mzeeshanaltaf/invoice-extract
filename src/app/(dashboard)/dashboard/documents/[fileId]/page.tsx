@@ -120,6 +120,10 @@ export default function DocumentDetailPage() {
 
   const inv = doc.invoice_object;
   const data = inv.invoice_data;
+  const meta = data.invoice_metadata;
+  const totals = data.totals;
+  const payment = data.payment_details;
+  const bankDetails = payment?.bank_details;
 
   const confidenceColor =
     inv.confidence === "high"
@@ -128,8 +132,14 @@ export default function DocumentDetailPage() {
         ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300"
         : "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300";
 
-  const currency = data.currency ?? "USD";
-  const bankDetails = data.banking_details ?? data.bank_details;
+  const currency = meta?.currency ?? "USD";
+
+  function formatAddress(addr?: { street?: string; city?: string; state?: string; postal_code?: string; country?: string }) {
+    if (!addr) return null;
+    return [addr.street, addr.city, addr.state, addr.postal_code, addr.country]
+      .filter(Boolean)
+      .join(", ") || null;
+  }
 
   return (
     <div className="space-y-6">
@@ -152,9 +162,9 @@ export default function DocumentDetailPage() {
             <Badge className={confidenceColor}>
               {inv.confidence} confidence
             </Badge>
-            {data.invoice_number && (
+            {meta?.invoice_number && (
               <span className="text-sm text-muted-foreground">
-                #{data.invoice_number}
+                #{meta.invoice_number}
               </span>
             )}
           </div>
@@ -172,7 +182,7 @@ export default function DocumentDetailPage() {
         {/* Tab: Invoice Data */}
         <TabsContent value="data" className="space-y-6">
           {/* Invoice header info */}
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-4">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -181,103 +191,118 @@ export default function DocumentDetailPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-lg font-semibold">
-                  {data.invoice_number || "—"}
+                  {meta?.invoice_number || "—"}
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Issue Date
+                  Invoice Date
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-lg font-semibold">
-                  {data.issue_date || "—"}
+                  {meta?.invoice_date || "—"}
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Amount Due
+                  Due Date
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-lg font-semibold">
-                  {data.amount_due != null
-                    ? `${currency} ${Number(data.amount_due).toFixed(2)}`
-                    : data.due_date || "—"}
+                  {meta?.due_date || "—"}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Balance Due
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-lg font-semibold">
+                  {totals?.balance_due != null
+                    ? `${currency} ${Number(totals.balance_due).toFixed(2)}`
+                    : "—"}
                 </p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Issuer & Client */}
+          {/* Seller & Buyer */}
           <div className="grid gap-6 md:grid-cols-2">
-            {/* Issuer */}
+            {/* Seller */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-sm">
                   <Building2 className="h-4 w-4" />
-                  Issuer
+                  Seller
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
-                <p className="font-semibold">{data.issuer?.name ?? "—"}</p>
-                {data.issuer?.address && (
+                <p className="font-semibold">{data.seller?.name ?? "—"}</p>
+                {formatAddress(data.seller?.address) && (
                   <div className="flex items-start gap-2 text-muted-foreground">
                     <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <span>{data.issuer.address}</span>
+                    <span>{formatAddress(data.seller?.address)}</span>
                   </div>
                 )}
-                {data.issuer?.email && (
+                {data.seller?.contact?.email && (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Mail className="h-3.5 w-3.5 shrink-0" />
-                    <span>{data.issuer.email}</span>
+                    <span>{data.seller.contact.email}</span>
                   </div>
                 )}
-                {data.issuer?.phone && (
+                {data.seller?.contact?.phone && (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Phone className="h-3.5 w-3.5 shrink-0" />
-                    <span>{data.issuer.phone}</span>
+                    <span>{data.seller.contact.phone}</span>
                   </div>
                 )}
-                {data.issuer?.website && (
+                {data.seller?.contact?.website && (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Globe className="h-3.5 w-3.5 shrink-0" />
-                    <span>{data.issuer.website}</span>
+                    <span>{data.seller.contact.website}</span>
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Client */}
+            {/* Buyer */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-sm">
                   <User className="h-4 w-4" />
-                  Client
+                  Buyer
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
-                <p className="font-semibold">{data.client?.name ?? "—"}</p>
-                {data.client?.address && (
+                <p className="font-semibold">{data.buyer?.name ?? "—"}</p>
+                {data.buyer?.company_name && (
+                  <p className="text-muted-foreground">{data.buyer.company_name}</p>
+                )}
+                {formatAddress(data.buyer?.address) && (
                   <div className="flex items-start gap-2 text-muted-foreground">
                     <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <span>{data.client.address}</span>
+                    <span>{formatAddress(data.buyer?.address)}</span>
                   </div>
                 )}
-                {data.client?.email && (
+                {data.buyer?.contact?.email && (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Mail className="h-3.5 w-3.5 shrink-0" />
-                    <span>{data.client.email}</span>
+                    <span>{data.buyer.contact.email}</span>
                   </div>
                 )}
-                {data.client?.phone && (
+                {data.buyer?.contact?.phone && (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Phone className="h-3.5 w-3.5 shrink-0" />
-                    <span>{data.client.phone}</span>
+                    <span>{data.buyer.contact.phone}</span>
                   </div>
                 )}
               </CardContent>
@@ -294,24 +319,48 @@ export default function DocumentDetailPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10">#</TableHead>
                       <TableHead>Description</TableHead>
                       <TableHead className="text-right">Qty</TableHead>
                       <TableHead className="text-right">Unit Price</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-right">Discount</TableHead>
+                      <TableHead className="text-right">Tax</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {data.line_items!.map((item, i) => (
                       <TableRow key={i}>
-                        <TableCell>{item.description}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {item.line_number ?? i + 1}
+                        </TableCell>
+                        <TableCell>
+                          {item.description}
+                          {item.item_code && (
+                            <span className="ml-1.5 text-xs text-muted-foreground">
+                              ({item.item_code})
+                            </span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right">
                           {item.quantity}
+                          {item.unit_of_measure && (
+                            <span className="ml-1 text-xs text-muted-foreground">
+                              {item.unit_of_measure}
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           {currency} {Number(item.unit_price ?? 0).toFixed(2)}
                         </TableCell>
+                        <TableCell className="text-right">
+                          {currency} {Number(item.discount ?? 0).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {currency} {Number(item.tax_amount ?? 0).toFixed(2)}
+                        </TableCell>
                         <TableCell className="text-right font-medium">
-                          {currency} {Number(item.amount ?? 0).toFixed(2)}
+                          {currency} {Number(item.line_total ?? 0).toFixed(2)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -331,57 +380,109 @@ export default function DocumentDetailPage() {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
                   <span>
-                    {currency} {Number(data.subtotal ?? 0).toFixed(2)}
+                    {currency} {Number(totals?.subtotal ?? 0).toFixed(2)}
                   </span>
                 </div>
+                {(totals?.discount_total ?? 0) > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Discount</span>
+                    <span>
+                      -{currency} {Number(totals!.discount_total).toFixed(2)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    Tax
-                    {data.tax?.rate != null
-                      ? ` (${Number(data.tax.rate * 100).toFixed(0)}%)`
-                      : ""}
-                  </span>
+                  <span className="text-muted-foreground">Tax</span>
                   <span>
-                    {currency} {Number(data.tax?.amount ?? 0).toFixed(2)}
+                    {currency} {Number(totals?.tax_total ?? 0).toFixed(2)}
                   </span>
                 </div>
+                {(totals?.shipping_cost ?? 0) > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Shipping</span>
+                    <span>
+                      {currency} {Number(totals!.shipping_cost).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+                {(totals?.other_charges ?? 0) > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Other Charges</span>
+                    <span>
+                      {currency} {Number(totals!.other_charges).toFixed(2)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between border-t pt-2 font-semibold">
-                  <span>Total</span>
+                  <span>Grand Total</span>
                   <span>
-                    {currency}{" "}
-                    {Number(
-                      data.total_amount ?? data.amount_due ?? 0
-                    ).toFixed(2)}
+                    {currency} {Number(totals?.grand_total ?? 0).toFixed(2)}
                   </span>
                 </div>
+                {(totals?.amount_paid ?? 0) > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Amount Paid</span>
+                    <span>
+                      -{currency} {Number(totals!.amount_paid).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+                {totals?.balance_due != null && (
+                  <div className="flex justify-between font-semibold text-primary">
+                    <span>Balance Due</span>
+                    <span>
+                      {currency} {Number(totals.balance_due).toFixed(2)}
+                    </span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Bank details */}
-          {bankDetails && (
+          {/* Payment details */}
+          {payment && (bankDetails?.bank_name || bankDetails?.account_number || bankDetails?.iban || bankDetails?.swift_bic || payment.payment_terms || payment.payment_method) && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Bank Details</CardTitle>
+                <CardTitle className="text-sm">Payment Details</CardTitle>
               </CardHeader>
               <CardContent className="text-sm">
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <div>
-                    <span className="text-muted-foreground">
-                      Account Name:{" "}
-                    </span>
-                    <span className="font-medium">
-                      {bankDetails.account_name}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">
-                      Account Number:{" "}
-                    </span>
-                    <span className="font-medium">
-                      {bankDetails.account_number}
-                    </span>
-                  </div>
+                  {payment.payment_terms && (
+                    <div>
+                      <span className="text-muted-foreground">Payment Terms: </span>
+                      <span className="font-medium">{payment.payment_terms}</span>
+                    </div>
+                  )}
+                  {payment.payment_method && (
+                    <div>
+                      <span className="text-muted-foreground">Payment Method: </span>
+                      <span className="font-medium">{payment.payment_method}</span>
+                    </div>
+                  )}
+                  {bankDetails?.bank_name && (
+                    <div>
+                      <span className="text-muted-foreground">Bank Name: </span>
+                      <span className="font-medium">{bankDetails.bank_name}</span>
+                    </div>
+                  )}
+                  {bankDetails?.account_number && (
+                    <div>
+                      <span className="text-muted-foreground">Account Number: </span>
+                      <span className="font-medium">{bankDetails.account_number}</span>
+                    </div>
+                  )}
+                  {bankDetails?.iban && (
+                    <div>
+                      <span className="text-muted-foreground">IBAN: </span>
+                      <span className="font-medium">{bankDetails.iban}</span>
+                    </div>
+                  )}
+                  {bankDetails?.swift_bic && (
+                    <div>
+                      <span className="text-muted-foreground">SWIFT/BIC: </span>
+                      <span className="font-medium">{bankDetails.swift_bic}</span>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
