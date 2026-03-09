@@ -18,13 +18,13 @@ export function Navbar() {
 
         {/* Nav links */}
         <nav className="hidden gap-6 text-sm font-medium md:flex">
-          <Link href="#features" className="text-muted-foreground hover:text-foreground transition-colors">
+          <Link href="/#features" className="text-muted-foreground hover:text-foreground transition-colors">
             Features
           </Link>
-          <Link href="#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">
+          <Link href="/#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">
             How it works
           </Link>
-          <Link href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors">
+          <Link href="/#pricing" className="text-muted-foreground hover:text-foreground transition-colors">
             Pricing
           </Link>
         </nav>
