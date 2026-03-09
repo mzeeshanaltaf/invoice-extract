@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat \"e:/Projects/Claude Code/Invoice Extract/src/app/\\(marketing\\)/layout.tsx\")"
+    ]
+  }
+}

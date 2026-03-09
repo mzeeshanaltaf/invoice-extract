@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { SignInButton, SignedIn, SignedOut } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
+import { PricingCta } from "@/components/marketing/pricing-cta";
+
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -9,8 +11,6 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Navbar } from "@/components/marketing/navbar";
-import { Footer } from "@/components/marketing/footer";
 import {
   ScanLine,
   Braces,
@@ -123,23 +123,21 @@ const plans = [
     ],
     cta: "Contact sales",
     highlighted: false,
+    contactUs: true,
   },
 ];
 
 /* ─── Stat items for social proof ────────────────────────────────── */
 const stats = [
   { value: "99%", label: "Extraction accuracy" },
-  { value: "<5s", label: "Processing time" },
+  { value: "<30s", label: "Processing time" },
   { value: "3", label: "Formats supported" },
 ];
 
 /* ─── Page ───────────────────────────────────────────────────────── */
 export default function LandingPage() {
   return (
-    <div className="flex min-h-screen flex-col">
-      <Navbar />
-
-      <main className="flex-1">
+    <>
         {/* ── Hero ─────────────────────────────────────────────── */}
         <section className="relative overflow-hidden px-4 py-28 md:py-40">
           {/* Background grid pattern */}
@@ -291,7 +289,7 @@ export default function LandingPage() {
                 Three steps. Structured data.
               </h2>
               <p className="mx-auto max-w-xl text-muted-foreground md:text-lg">
-                Upload your invoice and get extracted data in under 5 seconds.
+                Upload your invoice and get extracted data in under 30 seconds.
               </p>
             </div>
 
@@ -379,33 +377,12 @@ export default function LandingPage() {
                         </li>
                       ))}
                     </ul>
-                    {plan.comingSoon ? (
-                      <Button className="w-full" variant="outline" disabled>
-                        {plan.cta}
-                      </Button>
-                    ) : (
-                      <>
-                        <SignedOut>
-                          <SignInButton mode="modal">
-                            <Button
-                              className="w-full"
-                              variant={plan.highlighted ? "default" : "outline"}
-                            >
-                              {plan.cta}
-                            </Button>
-                          </SignInButton>
-                        </SignedOut>
-                        <SignedIn>
-                          <Button
-                            asChild
-                            className="w-full"
-                            variant={plan.highlighted ? "default" : "outline"}
-                          >
-                            <Link href="/dashboard">{plan.cta}</Link>
-                          </Button>
-                        </SignedIn>
-                      </>
-                    )}
+                    <PricingCta
+                      cta={plan.cta}
+                      highlighted={plan.highlighted}
+                      comingSoon={plan.comingSoon}
+                      contactUs={"contactUs" in plan ? plan.contactUs : false}
+                    />
                   </CardContent>
                 </Card>
               ))}
@@ -438,9 +415,6 @@ export default function LandingPage() {
             </SignedIn>
           </div>
         </section>
-      </main>
-
-      <Footer />
-    </div>
+    </>
   );
 }
