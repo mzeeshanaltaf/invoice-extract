@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useDashboardData } from "@/lib/dashboard-context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,12 +14,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { formatFileSize } from "@/lib/utils";
 import Link from "next/link";
-import { FileStack, Upload, ArrowRight, Eye } from "lucide-react";
+import { FileStack, Upload, ArrowRight, Eye, ScanEye } from "lucide-react";
+import type { UserDocument } from "@/lib/types";
 
 export default function DocumentsPage() {
   const { documents, isLoading } = useDashboardData();
+  const [previewDoc, setPreviewDoc] = useState<UserDocument | null>(null);
 
   if (isLoading) {
     return (
@@ -100,7 +109,16 @@ export default function DocumentsPage() {
                   <TableCell className="text-muted-foreground">
                     {formatFileSize(doc.file_size)}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right space-x-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1"
+                      onClick={() => setPreviewDoc(doc)}
+                    >
+                      <ScanEye className="h-3.5 w-3.5" />
+                      Preview
+                    </Button>
                     <Button asChild variant="ghost" size="sm" className="gap-1">
                       <Link href={`/dashboard/documents/${doc.file_id}`}>
                         <Eye className="h-3.5 w-3.5" />
@@ -114,6 +132,30 @@ export default function DocumentsPage() {
           </Table>
         </Card>
       )}
+
+      {/* Document preview dialog */}
+      <Dialog open={!!previewDoc} onOpenChange={(open) => !open && setPreviewDoc(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>{previewDoc?.file_name}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 overflow-auto rounded-md border bg-muted/30">
+            {previewDoc?.mime_type === "application/pdf" ? (
+              <iframe
+                src={`data:application/pdf;base64,${previewDoc.file_base64}`}
+                className="h-[65vh] w-full rounded-md"
+                title={previewDoc.file_name}
+              />
+            ) : (
+              <img
+                src={`data:${previewDoc?.mime_type};base64,${previewDoc?.file_base64}`}
+                alt={previewDoc?.file_name}
+                className="mx-auto max-h-[65vh] object-contain p-2"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

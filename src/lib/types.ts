@@ -46,6 +46,7 @@ export interface UserDocument {
   mime_type: string;
   file_size: number;
   num_pages: number;
+  file_base64: string;
   markdown_text: string;
   invoice_object: InvoiceObject;
 }
