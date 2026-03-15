@@ -1,14 +1,25 @@
 "use client";
 
 import { UserButton } from "@clerk/nextjs";
-import { Menu } from "lucide-react";
+import { Menu, Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Sidebar } from "./sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useDashboardData } from "@/lib/dashboard-context";
 
 interface TopNavProps {
   breadcrumb?: string;
+}
+
+function CreditBadge() {
+  const { creditBalance } = useDashboardData();
+  return (
+    <div className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1 text-sm font-medium text-muted-foreground">
+      <Coins className="h-3.5 w-3.5" />
+      <span>{creditBalance}</span>
+    </div>
+  );
 }
 
 export function TopNav({ breadcrumb = "Dashboard" }: TopNavProps) {
@@ -36,6 +47,7 @@ export function TopNav({ breadcrumb = "Dashboard" }: TopNavProps) {
 
       {/* Right side */}
       <div className="flex items-center gap-3">
+        <CreditBadge />
         <ThemeToggle />
         <UserButton />
       </div>
