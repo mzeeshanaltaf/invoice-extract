@@ -1,10 +1,10 @@
 /* ─── Analytics ─────────────────────────────────────────────────── */
 
 export interface UserAnalytics {
-  total_documents_processed: string;
-  total_pages_processed: string;
-  total_pdfs_processed: string;
-  total_images_processed: string;
+  total_documents_processed: number;
+  total_pages_processed: number;
+  total_pdfs_processed: number;
+  total_images_processed: number;
 }
 
 /* ─── Credits ──────────────────────────────────────────────────── */
@@ -44,8 +44,18 @@ export interface UserDocument {
   file_id: string;
   file_name: string;
   mime_type: string;
-  file_size: string;
-  file_base64: string;
+  file_size: number;
+  num_pages: number;
+  markdown_text: string;
+  invoice_object: InvoiceObject;
+}
+
+/** Combined response from the get_user_data webhook */
+export interface UserDataResponse {
+  remaining_credit: number;
+  credit_history: CreditTransaction[];
+  user_analytics: UserAnalytics;
+  user_documents: UserDocument[];
 }
 
 /* ─── Invoice Object (structured extraction result) ────────────── */
@@ -136,7 +146,7 @@ export interface InvoiceObject {
 export interface MarkdownInvoiceResponse {
   markdown_text: string;
   file_name: string;
-  file_size: string;
+  file_size: number;
   num_pages: number;
   invoice_object: InvoiceObject;
   file_id: string;

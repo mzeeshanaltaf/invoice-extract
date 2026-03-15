@@ -13,6 +13,7 @@ import type {
   UserAnalytics,
   CreditTransaction,
   UserDocument,
+  UserDataResponse,
   MarkdownInvoiceResponse,
 } from "@/lib/types";
 
@@ -54,56 +55,37 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
   const fetchAll = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [analyticsData, balanceData, historyData, docsData] =
-        await Promise.all([
-          fetch("/api/analytics")
-            .then(async (r) => {
-              if (!r.ok) return null;
-              return r.json();
-            })
-            .catch(() => null),
-          fetch("/api/credits/balance")
-            .then(async (r) => {
-              if (!r.ok) return null;
-              return r.json();
-            })
-            .catch(() => null),
-          fetch("/api/credits/history")
-            .then(async (r) => {
-              if (!r.ok) return [];
-              return r.json();
-            })
-            .catch(() => []),
-          fetch("/api/documents")
-            .then(async (r) => {
-              if (!r.ok) return [];
-              return r.json();
-            })
-            .catch(() => []),
-        ]);
+      const r = await fetch("/api/user-data");
+      if (!r.ok) return;
+      const data: UserDataResponse = await r.json();
+      if (!data) return;
 
-      // Analytics — handle array or unwrapped object
-      const a = unwrap<UserAnalytics>(analyticsData);
-      if (a && "total_documents_processed" in a) {
-        setAnalytics(a);
+      if (data.user_analytics) {
+        setAnalytics(data.user_analytics);
       }
 
-      // Credit balance — handle array or unwrapped object
-      const b = unwrap<{ current_balance: number }>(balanceData);
-      if (b && "current_balance" in b) {
-        setCreditBalance(b.current_balance ?? 0);
-      }
+      setCreditBalance(data.remaining_credit ?? 0);
+      setCreditHistory(Array.isArray(data.credit_history) ? data.credit_history : []);
 
-      // Credit history — always an array
-      const h = Array.isArray(historyData) ? historyData : [];
-      setCreditHistory(h);
+      const docs = Array.isArray(data.user_documents) ? data.user_documents : [];
+      setDocuments(docs);
 
-      // Documents — always an array
-      const d = Array.isArray(docsData) ? docsData : [];
-      setDocuments(d);
-
-      // Clear document detail cache on refresh (data may have changed)
+      // Pre-populate document detail cache from the full response
       docDetailCache.current.clear();
+      for (const doc of docs) {
+        if (doc.file_id && doc.invoice_object) {
+          docDetailCache.current.set(doc.file_id, {
+            file_id: doc.file_id,
+            file_name: doc.file_name,
+            file_size: doc.file_size,
+            num_pages: doc.num_pages,
+            markdown_text: doc.markdown_text,
+            invoice_object: doc.invoice_object,
+          });
+        }
+      }
+    } catch {
+      // silently fail — state stays at defaults
     } finally {
       setIsLoading(false);
     }

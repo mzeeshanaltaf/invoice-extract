@@ -28,22 +28,22 @@ export default function DashboardPage() {
   const statCards = [
     {
       label: "Total Documents",
-      value: analytics?.total_documents_processed ?? "0",
+      value: analytics?.total_documents_processed ?? 0,
       icon: FileStack,
     },
     {
       label: "Total Pages",
-      value: analytics?.total_pages_processed ?? "0",
+      value: analytics?.total_pages_processed ?? 0,
       icon: Layers,
     },
     {
       label: "PDFs Processed",
-      value: analytics?.total_pdfs_processed ?? "0",
+      value: analytics?.total_pdfs_processed ?? 0,
       icon: FileText,
     },
     {
       label: "Images Processed",
-      value: analytics?.total_images_processed ?? "0",
+      value: analytics?.total_images_processed ?? 0,
       icon: ImageIcon,
     },
   ];
@@ -178,7 +178,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Empty state CTA */}
-      {(!analytics || analytics.total_documents_processed === "0") && (
+      {(!analytics || analytics.total_documents_processed === 0) && (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center py-14 text-center">
             <Upload className="mb-4 h-12 w-12 text-muted-foreground/50" />
