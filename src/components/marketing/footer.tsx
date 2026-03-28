@@ -22,9 +22,9 @@ export function Footer() {
           <div>
             <h4 className="mb-3 text-sm font-semibold">Product</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link href="#features" className="hover:text-foreground transition-colors">Features</Link></li>
-              <li><Link href="#pricing" className="hover:text-foreground transition-colors">Pricing</Link></li>
-              <li><Link href="#how-it-works" className="hover:text-foreground transition-colors">How it works</Link></li>
+              <li><Link href="/#features" className="hover:text-foreground transition-colors">Features</Link></li>
+              <li><Link href="/#pricing" className="hover:text-foreground transition-colors">Pricing</Link></li>
+              <li><Link href="/#how-it-works" className="hover:text-foreground transition-colors">How it works</Link></li>
             </ul>
           </div>
 
@@ -33,10 +33,9 @@ export function Footer() {
             <h4 className="mb-3 text-sm font-semibold">Company</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link href="/about" className="hover:text-foreground transition-colors">About</Link></li>
-              <li><Link href="#" className="hover:text-foreground transition-colors">Blog</Link></li>
               <li>
                 <ContactDialog>
-                  <button className="hover:text-foreground transition-colors cursor-pointer">Contact</button>
+                  <button className="hover:text-foreground transition-colors cursor-pointer">Contact Us</button>
                 </ContactDialog>
               </li>
             </ul>

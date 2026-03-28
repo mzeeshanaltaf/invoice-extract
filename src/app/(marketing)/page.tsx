@@ -139,20 +139,18 @@ export default function LandingPage() {
   return (
     <>
         {/* ── Hero ─────────────────────────────────────────────── */}
-        <section className="relative overflow-hidden px-4 py-28 md:py-40">
-          {/* Background grid pattern */}
-          <div
-            className="pointer-events-none absolute inset-0 opacity-[0.03]"
-            style={{
-              backgroundImage:
-                "linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)",
-              backgroundSize: "48px 48px",
-            }}
+        <section className="relative overflow-hidden px-4">
+          {/* Background image — in flow so it zooms with the page */}
+          <img
+            src="/hero_section_bg.png"
+            alt=""
+            className="pointer-events-none w-full select-none"
+            style={{ width: "158.375rem" }}
           />
-          {/* Radial fade */}
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_20%,var(--color-background)_75%)]" />
+          {/* Dark overlay for text readability */}
+          <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-background/40 via-background/70 to-background" />
 
-          <div className="container relative mx-auto max-w-4xl text-center">
+          <div className="container relative mx-auto -mt-56 max-w-4xl pb-28 text-center md:-mt-72 md:pb-40">
             <Badge
               variant="secondary"
               className="mb-6 gap-1.5 px-3 py-1 text-xs font-medium tracking-wide uppercase"
