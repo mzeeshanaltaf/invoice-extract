@@ -140,17 +140,17 @@ export default function LandingPage() {
     <>
         {/* ── Hero ─────────────────────────────────────────────── */}
         <section className="relative overflow-hidden px-4">
-          {/* Background image — in flow so it zooms with the page */}
+          {/* Background image — in flow on md+ so text follows it naturally */}
           <img
             src="/hero_section_bg.png"
             alt=""
-            className="pointer-events-none w-full select-none"
-            style={{ width: "158.375rem" }}
+            className="pointer-events-none hidden w-full select-none md:block"
           />
-          {/* Dark overlay for text readability */}
-          <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-background/40 via-background/70 to-background" />
+          {/* Overlay: solid on mobile, gradient on md+ */}
+          <div className="pointer-events-none absolute inset-0 bg-background md:hidden" />
+          <div className="pointer-events-none absolute inset-0 hidden md:block md:bg-linear-to-b md:from-background/40 md:via-background/70 md:to-background" />
 
-          <div className="container relative mx-auto -mt-56 max-w-4xl pb-28 text-center md:-mt-72 md:pb-40">
+          <div className="container relative mx-auto max-w-4xl py-24 text-center md:-mt-[13vw] md:pb-40 md:pt-0">
             <Badge
               variant="secondary"
               className="mb-6 gap-1.5 px-3 py-1 text-xs font-medium tracking-wide uppercase"
