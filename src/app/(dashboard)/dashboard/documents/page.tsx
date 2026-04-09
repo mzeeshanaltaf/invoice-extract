@@ -22,8 +22,14 @@ import {
 } from "@/components/ui/dialog";
 import { formatFileSize } from "@/lib/utils";
 import Link from "next/link";
-import { FileStack, Upload, ArrowRight, Eye, ScanEye } from "lucide-react";
+import dynamic from "next/dynamic";
+import { FileStack, Upload, ArrowRight, Eye, ScanEye, Download, Loader2 } from "lucide-react";
 import type { UserDocument } from "@/lib/types";
+
+const PdfViewer = dynamic(
+  () => import("@/components/ui/pdf-viewer").then((m) => ({ default: m.PdfViewer })),
+  { ssr: false, loading: () => <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div> }
+);
 
 export default function DocumentsPage() {
   const { documents, isLoading } = useDashboardData();
@@ -136,21 +142,29 @@ export default function DocumentsPage() {
       {/* Document preview dialog */}
       <Dialog open={!!previewDoc} onOpenChange={(open) => !open && setPreviewDoc(null)}>
         <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>{previewDoc?.file_name}</DialogTitle>
+          <DialogHeader className="flex-row items-center justify-between pr-8">
+            <DialogTitle className="truncate">{previewDoc?.file_name}</DialogTitle>
+            {previewDoc?.file_base64 && (
+              <a
+                href={`data:${previewDoc.mime_type};base64,${previewDoc.file_base64}`}
+                download={previewDoc.file_name}
+                className="shrink-0"
+              >
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <Download className="h-3.5 w-3.5" />
+                  Download
+                </Button>
+              </a>
+            )}
           </DialogHeader>
-          <div className="flex-1 min-h-0 overflow-auto rounded-md border bg-muted/30">
+          <div className="flex-1 min-h-0 overflow-auto rounded-md border bg-muted/30 p-2">
             {previewDoc?.mime_type === "application/pdf" ? (
-              <iframe
-                src={`data:application/pdf;base64,${previewDoc.file_base64}`}
-                className="h-[65vh] w-full rounded-md"
-                title={previewDoc.file_name}
-              />
+              <PdfViewer base64={previewDoc.file_base64 ?? ""} />
             ) : (
               <img
                 src={`data:${previewDoc?.mime_type};base64,${previewDoc?.file_base64}`}
                 alt={previewDoc?.file_name}
-                className="mx-auto max-h-[65vh] object-contain p-2"
+                className="mx-auto max-h-[65vh] object-contain"
               />
             )}
           </div>
