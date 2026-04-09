@@ -10,11 +10,11 @@ import {
   FileText,
   Image as ImageIcon,
   X,
-  Loader2,
   CheckCircle,
   AlertCircle,
 } from "lucide-react";
 import { formatFileSize } from "@/lib/utils";
+import { ProcessingDialog } from "@/components/dashboard/processing-dialog";
 
 const ALLOWED_TYPES = [
   "application/pdf",
@@ -145,6 +145,8 @@ export function UploadForm({ credits, onUploadSuccess }: UploadFormProps) {
   const FileIcon = file ? FILE_TYPE_ICONS[file.type] ?? FileText : FileText;
 
   return (
+    <>
+    <ProcessingDialog open={isUploading} />
     <div className="space-y-4">
       {/* Drop zone */}
       <Card
@@ -246,19 +248,11 @@ export function UploadForm({ credits, onUploadSuccess }: UploadFormProps) {
           disabled={isUploading}
           className="w-full gap-2"
         >
-          {isUploading ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Processing invoice...
-            </>
-          ) : (
-            <>
-              <Upload className="h-4 w-4" />
-              Extract invoice data
-            </>
-          )}
+          <Upload className="h-4 w-4" />
+          Extract invoice data
         </Button>
       )}
     </div>
+    </>
   );
 }
