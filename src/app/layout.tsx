@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Analytics } from "@vercel/analytics/next";
 import { buildJsonLd, organizationSchema, websiteSchema } from "@/lib/json-ld";
 import "./globals.css";
 
@@ -51,6 +52,7 @@ export default function RootLayout({
             dangerouslySetInnerHTML={{ __html: buildJsonLd(websiteSchema) }}
           />
           <ThemeProvider>{children}</ThemeProvider>
+          <Analytics />
         </body>
       </html>
     </ClerkProvider>
