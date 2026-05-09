@@ -11,9 +11,21 @@ import {
 } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "About — InvoiceExtract",
+  title: "About",
   description:
     "Learn about InvoiceExtract, the AI-powered invoice data extraction platform built to save businesses time and reduce manual data entry.",
+  alternates: { canonical: "/about" },
+  openGraph: {
+    title: "About — InvoiceExtract",
+    description:
+      "Learn about InvoiceExtract, the AI-powered invoice data extraction platform built to save businesses time and reduce manual data entry.",
+    url: "/about",
+  },
+  twitter: {
+    title: "About — InvoiceExtract",
+    description:
+      "Learn about InvoiceExtract, the AI-powered invoice data extraction platform built to save businesses time and reduce manual data entry.",
+  },
 };
 
 const values = [

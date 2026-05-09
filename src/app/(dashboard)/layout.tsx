@@ -1,6 +1,11 @@
+import type { Metadata } from "next";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { TopNav } from "@/components/dashboard/top-nav";
 import { DashboardDataProvider } from "@/lib/dashboard-context";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default function DashboardLayout({
   children,

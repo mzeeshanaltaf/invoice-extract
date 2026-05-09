@@ -1,8 +1,21 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — InvoiceExtract",
-  description: "Terms of Service for InvoiceExtract — the rules and guidelines for using our invoice extraction service.",
+  title: "Terms of Service",
+  description:
+    "Terms of Service for InvoiceExtract — the rules and guidelines for using our invoice extraction service.",
+  alternates: { canonical: "/terms" },
+  openGraph: {
+    title: "Terms of Service — InvoiceExtract",
+    description:
+      "Terms of Service for InvoiceExtract — the rules and guidelines for using our invoice extraction service.",
+    url: "/terms",
+  },
+  twitter: {
+    title: "Terms of Service — InvoiceExtract",
+    description:
+      "Terms of Service for InvoiceExtract — the rules and guidelines for using our invoice extraction service.",
+  },
 };
 
 export default function TermsPage() {

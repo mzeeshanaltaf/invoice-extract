@@ -1,5 +1,26 @@
+import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
+import { buildJsonLd, softwareApplicationSchema } from "@/lib/json-ld";
 import { SignInButton, SignedIn, SignedOut } from "@clerk/nextjs";
+
+export const metadata: Metadata = {
+  title: "AI-Powered Invoice Data Extraction — InvoiceExtract",
+  description:
+    "Upload any invoice PDF or image and get structured line items, totals, and vendor details in seconds. Free to start — no credit card required.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "AI-Powered Invoice Data Extraction — InvoiceExtract",
+    description:
+      "Upload any invoice PDF or image and get structured line items, totals, and vendor details in seconds. Free to start — no credit card required.",
+    url: "/",
+  },
+  twitter: {
+    title: "AI-Powered Invoice Data Extraction — InvoiceExtract",
+    description:
+      "Upload any invoice PDF or image and get structured line items, totals, and vendor details in seconds. Free to start — no credit card required.",
+  },
+};
 import { Button } from "@/components/ui/button";
 import { PricingCta } from "@/components/marketing/pricing-cta";
 
@@ -138,12 +159,20 @@ const stats = [
 export default function LandingPage() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: buildJsonLd(softwareApplicationSchema) }}
+      />
         {/* ── Hero ─────────────────────────────────────────────── */}
         <section className="relative overflow-hidden px-4">
           {/* Background image — in flow on md+ so text follows it naturally */}
-          <img
+          <Image
             src="/hero_section_bg.png"
             alt=""
+            width={2534}
+            height={1215}
+            priority
+            sizes="100vw"
             className="pointer-events-none hidden w-full select-none md:block"
           />
           {/* Overlay: solid on mobile, gradient on md+ */}

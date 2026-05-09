@@ -1,8 +1,21 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — InvoiceExtract",
-  description: "Privacy Policy for InvoiceExtract — how we collect, use, and protect your data.",
+  title: "Privacy Policy",
+  description:
+    "Privacy Policy for InvoiceExtract — how we collect, use, and protect your data.",
+  alternates: { canonical: "/privacy" },
+  openGraph: {
+    title: "Privacy Policy — InvoiceExtract",
+    description:
+      "Privacy Policy for InvoiceExtract — how we collect, use, and protect your data.",
+    url: "/privacy",
+  },
+  twitter: {
+    title: "Privacy Policy — InvoiceExtract",
+    description:
+      "Privacy Policy for InvoiceExtract — how we collect, use, and protect your data.",
+  },
 };
 
 export default function PrivacyPage() {

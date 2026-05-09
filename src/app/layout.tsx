@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "@/components/theme-provider";
+import { buildJsonLd, organizationSchema, websiteSchema } from "@/lib/json-ld";
 import "./globals.css";
 
 const geist = Geist({
@@ -10,9 +11,26 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "InvoiceExtract — AI-Powered Invoice Data Extraction",
+  metadataBase: new URL("https://invoicextract.zeeshanai.cloud"),
+  title: {
+    default: "InvoiceExtract — AI-Powered Invoice Data Extraction",
+    template: "%s — InvoiceExtract",
+  },
   description:
     "Extract structured data from invoices instantly. Upload PDFs or images and get line items, totals, and vendor details powered by AI.",
+  openGraph: {
+    siteName: "InvoiceExtract",
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    site: "@invoicextract",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0f172a",
 };
 
 export default function RootLayout({
@@ -24,6 +42,14 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en" suppressHydrationWarning>
         <body className={`${geist.variable} font-sans antialiased`}>
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: buildJsonLd(organizationSchema) }}
+          />
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: buildJsonLd(websiteSchema) }}
+          />
           <ThemeProvider>{children}</ThemeProvider>
         </body>
       </html>
