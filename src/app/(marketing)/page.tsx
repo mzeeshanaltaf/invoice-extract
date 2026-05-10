@@ -14,11 +14,21 @@ export const metadata: Metadata = {
     description:
       "Upload any invoice PDF or image and get structured line items, totals, and vendor details in seconds. Free to start — no credit card required.",
     url: "/",
+    images: [
+      {
+        url: "https://invoicextract.zeeshanai.cloud/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "InvoiceExtract — AI-Powered Invoice Data Extraction",
+      },
+    ],
   },
   twitter: {
+    card: "summary_large_image",
     title: "AI-Powered Invoice Data Extraction — InvoiceExtract",
     description:
       "Upload any invoice PDF or image and get structured line items, totals, and vendor details in seconds. Free to start — no credit card required.",
+    images: ["https://invoicextract.zeeshanai.cloud/twitter-image"],
   },
 };
 import { Button } from "@/components/ui/button";

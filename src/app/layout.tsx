@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     locale: "en_US",
     images: [
       {
-        url: "/opengraph-image",
+        url: "https://invoicextract.zeeshanai.cloud/opengraph-image",
         width: 1200,
         height: 630,
         alt: "InvoiceExtract — AI-Powered Invoice Data Extraction",
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     site: "@invoicextract",
-    images: ["/twitter-image"],
+    images: ["https://invoicextract.zeeshanai.cloud/twitter-image"],
   },
 };
 
