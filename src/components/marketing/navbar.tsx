@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Receipt } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useSession } from "@/lib/auth-client";
+import { UserMenu } from "@/components/auth/user-menu";
 
 export function Navbar() {
+  const { data: session, isPending } = useSession();
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
       <div className="container mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
@@ -27,25 +30,31 @@ export function Navbar() {
           <Link href="/#pricing" className="text-muted-foreground hover:text-foreground transition-colors">
             Pricing
           </Link>
+          <Link href="/contact" className="text-muted-foreground hover:text-foreground transition-colors">
+            Contact
+          </Link>
         </nav>
 
         {/* Auth */}
         <div className="flex items-center gap-3">
           <ThemeToggle />
-          <SignedOut>
-            <SignInButton mode="modal">
-              <Button variant="ghost" size="sm">Sign in</Button>
-            </SignInButton>
-            <SignInButton mode="modal">
-              <Button size="sm">Get started</Button>
-            </SignInButton>
-          </SignedOut>
-          <SignedIn>
-            <Button asChild size="sm" variant="ghost">
-              <Link href="/dashboard">Dashboard</Link>
-            </Button>
-            <UserButton />
-          </SignedIn>
+          {isPending ? null : session ? (
+            <>
+              <Button asChild size="sm" variant="ghost">
+                <Link href="/dashboard">Dashboard</Link>
+              </Button>
+              <UserMenu />
+            </>
+          ) : (
+            <>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/sign-in">Sign in</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link href="/sign-up">Get started</Link>
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </header>

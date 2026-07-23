@@ -1,10 +1,10 @@
-import { auth } from "@clerk/nextjs/server";
+import { getUserId } from "@/lib/session";
 import { NextResponse } from "next/server";
 import { callN8nWebhook, N8N_ENDPOINTS } from "@/lib/n8n";
 import type { CreditTransaction } from "@/lib/types";
 
 export async function GET() {
-  const { userId } = await auth();
+  const userId = await getUserId();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

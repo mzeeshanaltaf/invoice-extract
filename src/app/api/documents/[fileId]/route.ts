@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { getUserId } from "@/lib/session";
 import { NextRequest, NextResponse } from "next/server";
 import { callN8nWebhook, N8N_ENDPOINTS } from "@/lib/n8n";
 import type { MarkdownInvoiceResponse } from "@/lib/types";
@@ -7,7 +7,7 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ fileId: string }> }
 ) {
-  const { userId } = await auth();
+  const userId = await getUserId();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

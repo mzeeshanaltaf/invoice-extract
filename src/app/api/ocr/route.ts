@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { getUserId } from "@/lib/session";
 import { NextRequest, NextResponse } from "next/server";
 import { callN8nWebhookFormData, N8N_ENDPOINTS } from "@/lib/n8n";
 import type { OcrResponse } from "@/lib/types";
@@ -6,7 +6,7 @@ import type { OcrResponse } from "@/lib/types";
 const ALLOWED_TYPES = ["application/pdf", "image/png", "image/jpeg"];
 
 export async function POST(req: NextRequest) {
-  const { userId } = await auth();
+  const userId = await getUserId();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

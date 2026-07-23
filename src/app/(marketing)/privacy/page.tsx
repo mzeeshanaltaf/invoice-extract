@@ -49,8 +49,8 @@ export default function PrivacyPage() {
             <ul className="ml-4 mt-2 list-disc space-y-1.5">
               <li>
                 <strong className="text-foreground">Account Information:</strong>{" "}
-                Your name and email address, provided through our
-                authentication provider (Clerk).
+                Your name and email address, provided when you create an
+                account (via email/password or Google sign-in).
               </li>
               <li>
                 <strong className="text-foreground">Uploaded Documents:</strong>{" "}
@@ -101,7 +101,7 @@ export default function PrivacyPage() {
             <ul className="ml-4 mt-2 list-disc space-y-1.5">
               <li>
                 <strong className="text-foreground">Authentication:</strong>{" "}
-                Clerk, for managing user accounts and sign-in.
+                Google, when you choose to sign in with your Google account.
               </li>
               <li>
                 <strong className="text-foreground">AI Processing:</strong>{" "}

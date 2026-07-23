@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { buildJsonLd, softwareApplicationSchema } from "@/lib/json-ld";
-import { SignInButton, SignedIn, SignedOut } from "@clerk/nextjs";
+import { auth } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "AI-Powered Invoice Data Extraction — InvoiceExtract",
@@ -166,7 +167,8 @@ const stats = [
 ];
 
 /* ─── Page ───────────────────────────────────────────────────────── */
-export default function LandingPage() {
+export default async function LandingPage() {
+  const session = await auth.api.getSession({ headers: await headers() });
   return (
     <>
       <script
@@ -212,20 +214,11 @@ export default function LandingPage() {
             </p>
 
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-              <SignedOut>
-                <SignInButton mode="modal">
-                  <Button size="lg" className="gap-2 px-8">
-                    Start for free <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </SignInButton>
-              </SignedOut>
-              <SignedIn>
-                <Button asChild size="lg" className="gap-2 px-8">
-                  <Link href="/dashboard">
-                    Go to Dashboard <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </SignedIn>
+              <Button asChild size="lg" className="gap-2 px-8">
+                <Link href={session ? "/dashboard" : "/sign-up"}>
+                  {session ? "Go to Dashboard" : "Start for free"} <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
               <Button variant="outline" size="lg" asChild>
                 <a href="#how-it-works">See how it works</a>
               </Button>
@@ -436,20 +429,11 @@ export default function LandingPage() {
             <p className="mb-8 text-primary-foreground/70">
               Sign up free, get 5 credits, and process your first invoice today.
             </p>
-            <SignedOut>
-              <SignInButton mode="modal">
-                <Button size="lg" variant="secondary" className="gap-2 px-8">
-                  Get started for free <ArrowRight className="h-4 w-4" />
-                </Button>
-              </SignInButton>
-            </SignedOut>
-            <SignedIn>
-              <Button asChild size="lg" variant="secondary" className="gap-2 px-8">
-                <Link href="/dashboard">
-                  Go to Dashboard <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
-            </SignedIn>
+            <Button asChild size="lg" variant="secondary" className="gap-2 px-8">
+              <Link href={session ? "/dashboard" : "/sign-up"}>
+                {session ? "Go to Dashboard" : "Get started for free"} <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
           </div>
         </section>
     </>

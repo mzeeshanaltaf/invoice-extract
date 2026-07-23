@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { Button } from "@/components/ui/button";
-import { SignInButton, SignedIn, SignedOut } from "@clerk/nextjs";
+import { auth } from "@/lib/auth";
 import {
   ArrowRight,
   ScanLine,
@@ -55,7 +56,8 @@ const values = [
   },
 ];
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const session = await auth.api.getSession({ headers: await headers() });
   return (
     <>
       {/* Hero */}
@@ -169,25 +171,11 @@ export default function AboutPage() {
           <p className="mb-8 text-primary-foreground/70">
             Sign up free and process your first invoice in seconds.
           </p>
-          <SignedOut>
-            <SignInButton mode="modal">
-              <Button size="lg" variant="secondary" className="gap-2 px-8">
-                Start for free <ArrowRight className="h-4 w-4" />
-              </Button>
-            </SignInButton>
-          </SignedOut>
-          <SignedIn>
-            <Button
-              asChild
-              size="lg"
-              variant="secondary"
-              className="gap-2 px-8"
-            >
-              <Link href="/dashboard">
-                Go to Dashboard <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-          </SignedIn>
+          <Button asChild size="lg" variant="secondary" className="gap-2 px-8">
+            <Link href={session ? "/dashboard" : "/sign-up"}>
+              {session ? "Go to Dashboard" : "Start for free"} <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
         </div>
       </section>
     </>

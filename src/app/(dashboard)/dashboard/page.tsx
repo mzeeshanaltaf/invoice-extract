@@ -1,6 +1,6 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "@/lib/auth-client";
 import { useDashboardData } from "@/lib/dashboard-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,8 @@ import {
 import { formatDate } from "@/lib/utils";
 
 export default function DashboardPage() {
-  const { user } = useUser();
+  const { data: session } = useSession();
+  const firstName = session?.user.name?.trim().split(/\s+/)[0];
   const { analytics, creditBalance, creditHistory, isLoading } =
     useDashboardData();
 
@@ -88,7 +89,7 @@ export default function DashboardPage() {
       {/* Welcome */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
-          Welcome back, {user?.firstName ?? "there"}
+          Welcome back, {firstName ?? "there"}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Here&apos;s an overview of your invoice processing activity.

@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { SignInButton, SignedIn, SignedOut } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
-import { ContactDialog } from "@/components/marketing/contact-dialog";
+import { useSession } from "@/lib/auth-client";
 
 interface PricingCtaProps {
   cta: string;
@@ -14,6 +13,7 @@ interface PricingCtaProps {
 
 export function PricingCta({ cta, highlighted, comingSoon, contactUs }: PricingCtaProps) {
   const variant = highlighted ? "default" : "outline";
+  const { data: session } = useSession();
 
   if (comingSoon) {
     return (
@@ -25,28 +25,15 @@ export function PricingCta({ cta, highlighted, comingSoon, contactUs }: PricingC
 
   if (contactUs) {
     return (
-      <ContactDialog>
-        <Button className="w-full" variant={variant}>
-          {cta}
-        </Button>
-      </ContactDialog>
+      <Button asChild className="w-full" variant={variant}>
+        <Link href="/contact">{cta}</Link>
+      </Button>
     );
   }
 
   return (
-    <>
-      <SignedOut>
-        <SignInButton mode="modal">
-          <Button className="w-full" variant={variant}>
-            {cta}
-          </Button>
-        </SignInButton>
-      </SignedOut>
-      <SignedIn>
-        <Button asChild className="w-full" variant={variant}>
-          <Link href="/dashboard">{cta}</Link>
-        </Button>
-      </SignedIn>
-    </>
+    <Button asChild className="w-full" variant={variant}>
+      <Link href={session ? "/dashboard" : "/sign-up"}>{cta}</Link>
+    </Button>
   );
 }
