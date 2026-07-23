@@ -17,19 +17,23 @@ AI-powered invoice data extraction SaaS. Upload PDFs or images, and get structur
 ## Tech Stack
 
 - **Frontend:** Next.js 16.1.6, TypeScript 5, Tailwind CSS v4 (OKLch), shadcn/ui (new-york)
-- **Authentication:** Clerk
+- **Authentication:** Better Auth (email/password + Google OAuth), backed by Postgres (`invoice_extract` schema)
 - **Backend Logic:** n8n workflows exposed via webhooks
 - **Icons:** Lucide React
-- **Webhooks:** Svix (for Clerk events)
+- **Contact form:** honeypot + Upstash Redis rate limiting
+- **Analytics:** self-hosted Umami (cookieless)
+- **Deployment:** Coolify on a Hostinger VPS; auto-deploy from `main` via GitHub Actions
 - **SEO:** Next.js Metadata API, `next/og` (OG/Twitter image generation), JSON-LD structured data
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ and npm
-- Clerk account ([clerk.com](https://clerk.com))
+- Node.js 20+ and npm
+- A Postgres database (Better Auth tables live in the `invoice_extract` schema)
+- Google OAuth credentials (Google Cloud Console) for social sign-in
 - n8n instance with configured webhook endpoints
+- Upstash Redis (contact-form rate limiting) and a Umami instance (analytics)
 - Environment variables configured (see below)
 
 ### Installation
@@ -43,17 +47,38 @@ npm install
 
 ### Environment Setup
 
-Create a `.env.local` file in the project root:
+Copy `.env.example` to `.env.local` and fill in the values:
 
 ```env
-# Clerk Authentication
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-CLERK_SECRET_KEY=your_clerk_secret_key
-CLERK_WEBHOOK_SECRET=your_clerk_webhook_secret
+# Better Auth
+BETTER_AUTH_SECRET=your_secret            # openssl rand -base64 32
+BETTER_AUTH_URL=http://localhost:3000     # prod domain in production
+
+# Google OAuth (redirect URI: <BETTER_AUTH_URL>/api/auth/callback/google)
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# Database (Better Auth tables in the invoice_extract schema)
+DATABASE_URL=postgres://user:password@host:5432/dbname
 
 # n8n Webhooks
-N8N_WEBHOOK_BASE_URL=https://your-n8n-instance.com/webhook
 N8N_API_KEY=your_n8n_api_key
+N8N_WEBHOOK_BASE_URL=https://your-n8n-instance.com/webhook
+N8N_CONTACT_WEBHOOK_URL=https://your-n8n-instance.com/webhook/CONTACT_WEBHOOK_ID
+
+# Upstash Redis (contact-form rate limiting)
+UPSTASH_REDIS_REST_URL=https://your-instance.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your_upstash_token
+
+# Umami analytics (must be set at BUILD time)
+NEXT_PUBLIC_UMAMI_SCRIPT_URL=https://your-umami-host/script.js
+NEXT_PUBLIC_UMAMI_WEBSITE_ID=your_umami_website_id
+```
+
+Then create the Better Auth tables:
+
+```bash
+npx @better-auth/cli@latest migrate   # reads src/lib/auth.ts
 ```
 
 ### Development
@@ -81,7 +106,10 @@ src/
 │   │   ├── about/page.tsx    # About page
 │   │   ├── privacy/page.tsx  # Privacy policy
 │   │   ├── terms/page.tsx    # Terms of service
+│   │   ├── contact/page.tsx  # Contact form (honeypot + rate limiting)
 │   │   └── layout.tsx        # Marketing layout
+│   ├── sign-in/page.tsx      # Better Auth sign-in (email/password + Google)
+│   ├── sign-up/page.tsx      # Better Auth sign-up
 │   ├── (dashboard)/          # Authenticated dashboard (noindex)
 │   │   ├── layout.tsx        # Dashboard layout with sidebar
 │   │   └── dashboard/
@@ -91,11 +119,13 @@ src/
 │   │       ├── credits/      # Credit balance & history
 │   │       └── settings/     # Settings (placeholder)
 │   ├── api/
+│   │   ├── auth/[...all]/    # Better Auth handler (sign-in/up, OAuth, session)
 │   │   ├── ocr/              # Invoice extraction
 │   │   ├── analytics/        # User analytics
 │   │   ├── credits/          # Credit management
 │   │   ├── documents/        # Document list & detail
-│   │   └── webhooks/         # Clerk webhook handler
+│   │   ├── user-data/        # Aggregate user data
+│   │   └── contact/          # Contact form submission (honeypot + rate limit)
 │   ├── layout.tsx            # Root layout (metadata, JSON-LD)
 │   ├── robots.ts             # robots.txt generation
 │   ├── sitemap.ts            # sitemap.xml generation
@@ -111,17 +141,25 @@ src/
 │   ├── marketing/            # Landing page components
 │   └── dashboard/            # Dashboard components
 ├── lib/
+│   ├── auth.ts               # Better Auth server instance (pg pool, Google, signup-credits hook)
+│   ├── auth-client.ts        # Better Auth React client (useSession, signIn, signOut)
+│   ├── session.ts            # getUserId() helper used by API routes
+│   ├── rate-limit.ts         # Upstash sliding-window limiter (contact form)
 │   ├── types.ts              # TypeScript interfaces
 │   ├── n8n.ts                # n8n webhook client
 │   ├── json-ld.ts            # JSON-LD schema helpers (Organization, WebSite, SoftwareApplication)
 │   ├── dashboard-context.tsx # React Context for data caching
 │   └── utils.ts              # Utilities
-└── middleware.ts             # Next.js auth middleware
+└── middleware.ts             # Better Auth session-cookie guard for /dashboard
 ```
 
 ## API Routes
 
-All routes require Clerk authentication.
+The data routes below require a valid Better Auth session (the user id is read
+server-side and forwarded to n8n as `user_id`).
+
+### Authentication
+- `ALL /api/auth/[...all]` — Better Auth: email/password, Google OAuth, session management
 
 ### OCR & Processing
 - `POST /api/ocr` — Upload and process an invoice (PDF/PNG/JPEG)
@@ -137,8 +175,12 @@ All routes require Clerk authentication.
 - `GET /api/documents` — List all user documents
 - `GET /api/documents/[fileId]` — Fetch document with extracted invoice data
 
-### Webhooks
-- `POST /api/webhooks/clerk` — Clerk user events (signup credits)
+### Contact
+- `POST /api/contact` — Contact form submission; drops honeypot hits silently and rate-limits per IP via Upstash
+
+> Signup credits (5 on first sign-up) are granted by a Better Auth
+> `databaseHooks.user.create.after` hook that calls the n8n credits endpoint —
+> no dedicated webhook route is needed.
 
 ## Data Flow
 
@@ -237,7 +279,7 @@ The extracted invoice is structured as:
 
 ### Analytics showing zeros
 - Verify n8n `get_analytics_per_user` endpoint is returning valid data
-- Check Clerk authentication is working
+- Check that you are signed in (a valid Better Auth session exists)
 - Review browser DevTools Network tab to see API response
 
 ### Upload fails
@@ -302,23 +344,21 @@ The hero image is served via `next/image` with `priority` (preload) and `sizes="
 
 ## Deployment
 
-### Vercel (Recommended)
+The app is self-hosted on **Coolify** (Hostinger VPS) behind Traefik with
+Let's Encrypt SSL. Continuous deployment is wired via GitHub Actions:
 
 ```bash
-# Push to GitHub
+# Push to main -> .github/workflows/deploy.yml calls the Coolify deploy API
 git push origin main
-
-# Deploy from Vercel dashboard
-# Set environment variables in Project Settings
-# Redeploy from Git
 ```
 
-### Self-Hosted
-
-1. Build the app: `npm run build`
-2. Deploy `out/` directory to your server
-3. Set environment variables
-4. Run `npm run start`
+Notes:
+- Env vars are set in the Coolify app. Every `NEXT_PUBLIC_*`, plus
+  `BETTER_AUTH_URL` and `DATABASE_URL`, must be **build-time** variables (they're
+  inlined/read during `next build`); secrets are runtime-only.
+- Repo secrets `COOLIFY_API_TOKEN` (deploy-scoped) and `COOLIFY_APP_UUID` drive
+  the deploy workflow.
+- See [CLAUDE.md](CLAUDE.md) for the full architecture and deployment gotchas.
 
 ## Contributing
 

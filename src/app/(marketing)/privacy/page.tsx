@@ -29,7 +29,7 @@ export default function PrivacyPage() {
           Privacy Policy
         </h1>
         <p className="mb-10 text-sm text-muted-foreground">
-          Last updated: March 9, 2026
+          Last updated: July 23, 2026
         </p>
 
         <div className="prose prose-neutral dark:prose-invert max-w-none space-y-8 text-sm leading-relaxed text-muted-foreground [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mb-3 [&_h2]:mt-0">
@@ -60,6 +60,14 @@ export default function PrivacyPage() {
                 <strong className="text-foreground">Usage Data:</strong>{" "}
                 Information about how you interact with the service, including
                 pages visited, features used, and processing history.
+              </li>
+              <li>
+                <strong className="text-foreground">Analytics Data:</strong>{" "}
+                We use a self-hosted, privacy-friendly analytics tool (Umami) to
+                collect aggregate, anonymous usage statistics — such as page
+                views, referring sites, and general device, browser, and country
+                information. This data is cookieless, is not used to personally
+                identify you, and is not shared with any third party.
               </li>
               <li>
                 <strong className="text-foreground">Contact Information:</strong>{" "}
@@ -141,11 +149,12 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2>8. Cookies</h2>
+            <h2>8. Cookies and Analytics</h2>
             <p>
               We use essential cookies required for authentication and session
               management. We do not use advertising or third-party tracking
-              cookies.
+              cookies. Our analytics (self-hosted Umami) is cookieless and
+              collects only aggregate, anonymous usage statistics.
             </p>
           </section>
 
