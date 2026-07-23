@@ -22,6 +22,7 @@ name: Deploy to Coolify
 
 env:
   COOLIFY_URL: https://coolify.zeeshanai.cloud # <-- set once per Coolify instance
+  # (verified push-triggered auto-deploy fires on real file changes)
 
 on:
   push:
