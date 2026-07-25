@@ -53,6 +53,30 @@ There is no test suite. Verify changes with `npm run build` plus manual checks.
 - Env: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GOOGLE_CLIENT_ID/SECRET`,
   `DATABASE_URL`. Google redirect URI: `<BETTER_AUTH_URL>/api/auth/callback/google`.
 
+## Email OTP (verification + password reset)
+
+- `emailOTP` plugin in `auth.ts` with `requireEmailVerification: true`. Sign-up
+  therefore issues **no session** — `auth-form.tsx` routes to `/verify-email`
+  after a successful `signUp.email()`, and on an `EMAIL_NOT_VERIFIED` sign-in
+  error (the server already sent a fresh code via `sendOnSignIn`). Google
+  accounts arrive pre-verified and skip all of this.
+- Screens: `/verify-email` (needs `<Suspense>` — it reads `useSearchParams`) and
+  `/forgot-password` (one route, request → reset steps). Both `noindex`.
+- **No migration needed**: codes live in the existing `verification` table as
+  `email-verification-otp-<email>` / `forget-password-otp-<email>` rows.
+- Sending: `src/lib/email.ts` (Resend, server-only). `RESEND_FROM_EMAIL` is
+  **unquoted** — dotenv strips quotes but Coolify doesn't, and Resend 422s on a
+  quoted `from`; the sender unquotes defensively anyway. The user-visible sender
+  address is the one client-safe constant in `src/lib/otp-sender.ts`.
+- **Better Auth swallows send failures** (`runInBackgroundOrAwait`), so a dead
+  Resend key still returns `{ success: true }` and the UI still says "code
+  sent". Debug against the Resend dashboard and server logs, never the UI.
+- `requestPasswordReset` returns success for unknown emails by design
+  (anti-enumeration) — keep the copy neutral. `resetPassword` creates **no**
+  session; it redirects to `/sign-in?reset=1`.
+- These screens report errors **inline** (`text-destructive`), matching
+  `auth-form.tsx`. The project has no toaster — don't introduce toasts here.
+
 ## Contact form
 
 - Page `src/app/(marketing)/contact/page.tsx`, form

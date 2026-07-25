@@ -38,6 +38,8 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const redirect = searchParams.get("redirect") || "/dashboard";
 
   const isSignUp = mode === "sign-up";
+  // Set by the forgot-password flow, which finishes without a session.
+  const justReset = !isSignUp && searchParams.get("reset") === "1";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -58,6 +60,10 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     }
   }
 
+  function verifyUrl() {
+    return `/verify-email?email=${encodeURIComponent(email.trim())}&redirect=${encodeURIComponent(redirect)}`;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -68,8 +74,21 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       : await authClient.signIn.email({ email: email.trim(), password });
 
     if (error) {
+      // The account exists but isn't verified. The server already sent a fresh
+      // code (emailVerification.sendOnSignIn), so hand off to the verify screen
+      // instead of showing an error the user can't act on.
+      if (error.code === "EMAIL_NOT_VERIFIED") {
+        router.push(verifyUrl());
+        return;
+      }
       setError(error.message || "Something went wrong. Please try again.");
       setSubmitting(false);
+      return;
+    }
+
+    if (isSignUp) {
+      // requireEmailVerification means sign-up issues no session.
+      router.push(verifyUrl());
       return;
     }
 
@@ -93,6 +112,12 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
             : "Sign in to continue to your dashboard."}
         </p>
       </div>
+
+      {justReset && (
+        <p className="mb-5 rounded-md border border-border bg-muted/40 px-3 py-2.5 text-center text-sm text-muted-foreground">
+          Password updated. Sign in with your new password.
+        </p>
+      )}
 
       <Button
         type="button"
@@ -138,7 +163,17 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="password">Password</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">Password</Label>
+            {!isSignUp && (
+              <Link
+                href="/forgot-password"
+                className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+              >
+                Forgot password?
+              </Link>
+            )}
+          </div>
           <Input
             id="password"
             type="password"

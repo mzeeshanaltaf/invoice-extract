@@ -17,7 +17,7 @@ AI-powered invoice data extraction SaaS. Upload PDFs or images, and get structur
 ## Tech Stack
 
 - **Frontend:** Next.js 16.1.6, TypeScript 5, Tailwind CSS v4 (OKLch), shadcn/ui (new-york)
-- **Authentication:** Better Auth (email/password + Google OAuth), backed by Postgres (`invoice_extract` schema)
+- **Authentication:** Better Auth (email/password + Google OAuth) with email-OTP verification and password reset via Resend, backed by Postgres (`invoice_extract` schema)
 - **Backend Logic:** n8n workflows exposed via webhooks
 - **Icons:** Lucide React
 - **Contact form:** honeypot + Upstash Redis rate limiting
@@ -32,6 +32,7 @@ AI-powered invoice data extraction SaaS. Upload PDFs or images, and get structur
 - Node.js 20+ and npm
 - A Postgres database (Better Auth tables live in the `invoice_extract` schema)
 - Google OAuth credentials (Google Cloud Console) for social sign-in
+- A Resend account with a **verified sending domain** (auth OTP emails)
 - n8n instance with configured webhook endpoints
 - Upstash Redis (contact-form rate limiting) and a Umami instance (analytics)
 - Environment variables configured (see below)
@@ -61,6 +62,12 @@ GOOGLE_CLIENT_SECRET=your_google_client_secret
 # Database (Better Auth tables in the invoice_extract schema)
 DATABASE_URL=postgres://user:password@host:5432/dbname
 
+# Resend — sends the auth OTP emails (verification + password reset).
+# RESEND_FROM_EMAIL is unquoted on purpose: dotenv strips quotes locally but
+# Coolify does not, and Resend rejects a quoted `from` with a 422.
+RESEND_API_KEY=re_your_key
+RESEND_FROM_EMAIL=InvoicExtract <noreply@verification.yourdomain.com>
+
 # n8n Webhooks
 N8N_API_KEY=your_n8n_api_key
 N8N_WEBHOOK_BASE_URL=https://your-n8n-instance.com/webhook
@@ -80,6 +87,9 @@ Then create the Better Auth tables:
 ```bash
 npx @better-auth/cli@latest migrate   # reads src/lib/auth.ts
 ```
+
+The email-OTP flow needs **no migration** — codes are stored as rows in the
+`verification` table Better Auth already creates.
 
 ### Development
 
@@ -110,6 +120,8 @@ src/
 │   │   └── layout.tsx        # Marketing layout
 │   ├── sign-in/page.tsx      # Better Auth sign-in (email/password + Google)
 │   ├── sign-up/page.tsx      # Better Auth sign-up
+│   ├── verify-email/page.tsx # 6-digit email verification (noindex)
+│   ├── forgot-password/      # Request code → set new password (noindex)
 │   ├── (dashboard)/          # Authenticated dashboard (noindex)
 │   │   ├── layout.tsx        # Dashboard layout with sidebar
 │   │   └── dashboard/
@@ -138,11 +150,14 @@ src/
 │   └── middleware.ts         # Auth middleware
 ├── components/
 │   ├── ui/                   # shadcn/ui components
+│   ├── auth/                 # Sign-in/up form, verify-email, forgot-password, OTP field
 │   ├── marketing/            # Landing page components
 │   └── dashboard/            # Dashboard components
 ├── lib/
-│   ├── auth.ts               # Better Auth server instance (pg pool, Google, signup-credits hook)
-│   ├── auth-client.ts        # Better Auth React client (useSession, signIn, signOut)
+│   ├── auth.ts               # Better Auth server instance (pg pool, Google, emailOTP, signup-credits hook)
+│   ├── auth-client.ts        # Better Auth React client (useSession, signIn, signOut, emailOtp)
+│   ├── email.ts              # Resend sender + OTP email template (server-only)
+│   ├── otp-sender.ts         # Client-safe sender address constant
 │   ├── session.ts            # getUserId() helper used by API routes
 │   ├── rate-limit.ts         # Upstash sliding-window limiter (contact form)
 │   ├── types.ts              # TypeScript interfaces
