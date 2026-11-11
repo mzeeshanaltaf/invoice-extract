@@ -9,7 +9,7 @@ Each session appends one entry at the end of its phase. Newest at the bottom. Ne
 | 1 Backend | done | 2026-11-11 | 119 tests pass (+1 S3 test, run separately); live OpenAI check ALL PASS on flex tier |
 | 2 Front end integration | done | 2026-11-11 | `npm run build` green; full local walkthrough passed against the Phase 1 backend; contact form stays on n8n (user decision) |
 | 3 Redesign | done | 2026-11-11 | `npm run build` green; 96 screenshots; axe 0 violations (16 screens x 2 themes x 1440/375); Phase 2 flows re-walked |
-| 4 Deploy | not started | | |
+| 4 Deploy | partial | 2026-11-11 | Repo side done (branch `phase-4-deploy`, deploy.yml updated). Blocked: no Coolify API token in the session; no infra created, no DNS, no push to `main` |
 | 5 Cutover | not started | | |
 
 ## Entry template (copy for each phase)
@@ -219,3 +219,16 @@ Backend defaults (`BETTER_AUTH_URL`, `ALLOWED_ORIGINS` = `http://localhost:3000`
 - Phase 4 still needs `NEXT_PUBLIC_API_URL` (build-time), the `jwks` migration on the production database, MinIO, Resend inbound and the Coolify wiring; the redesign adds no env vars. `next/font/google` needs network at build.
 - The root `.gitignore` is unchanged; `docs/plan/phase-3-screenshots/` is about 10 MB of JPEGs (commit it or drop it as you prefer).
 - Keep to DESIGN.md for any later UI: vermilion only for the single primary action and stamps, green only for extracted/verified, `.figures` for numbers, no em dashes, no `outline-none` on controls, errors inline (no toasts).
+
+### Phase 4: Deploy  (2026-11-11, session 1: partial)
+**Result:** partial. Only repo-side work is done; no shared infrastructure was changed, nothing pushed to `main`.
+
+**Prior-phase check:** Phase 3 exit criteria verified in the repo: branch `phase-3-redesign` holds commits for phases 1-3, PRODUCT.md/DESIGN.md exist, `npm run build` passes (re-run this session).
+
+**Built:** branch `phase-4-deploy` (from `phase-3-redesign`); [.github/workflows/deploy.yml](../../.github/workflows/deploy.yml) now triggers both apps with the retry loop (new repo secret needed: `COOLIFY_API_APP_UUID`). Committed as 1d58c3b.
+
+**VPS check (step 1):** disk 49% of 96G, docker-cleanup cron present (`0 3 * * 0`), `cron` active, last log 2026-11-08.
+
+**Blocked / not done:** `COOLIFY_API_TOKEN_ROOT` is not set in the session environment (bash or Windows user/machine env), so the API app, env vars, MinIO and the Better Auth `jwks` migration on production were not done. DNS and Resend inbound and the merge to `main` also wait for user confirmation.
+
+**Next session must:** get the token into the environment, confirm DNS and merge with the user, then do steps 2-5 and 7 of [phase-4-deploy.md](phase-4-deploy.md), add the `COOLIFY_API_APP_UUID` secret, run the smoke tests, and replace this entry.
