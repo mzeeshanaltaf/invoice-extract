@@ -2,14 +2,14 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "InvoiceExtract — AI-Powered Invoice Data Extraction",
-    short_name: "InvoiceExtract",
+    name: "InvoicExtract: AI Invoice Data Extraction",
+    short_name: "InvoicExtract",
     description:
       "Extract structured data from invoices instantly. Upload PDFs or images and get line items, totals, and vendor details powered by AI.",
     start_url: "/",
     display: "standalone",
-    background_color: "#0f172a",
-    theme_color: "#0f172a",
+    background_color: "#faf6ee",
+    theme_color: "#c83314",
     icons: [
       {
         src: "/icon",

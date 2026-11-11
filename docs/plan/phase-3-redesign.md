@@ -2,7 +2,7 @@
 
 **Prerequisite reading:** [README.md](README.md), [00-overview.md](00-overview.md), [HANDOFF.md](HANDOFF.md) (Phase 2 entry: component map, what is placeholder UI). Invoke the `impeccable` skill before doing design work and follow its gates.
 **Depends on:** Phase 2 done (data flow works end to end). **Unblocks:** Phase 4.
-**Scope guard:** visuals, layout, copy and motion. Do not change API contracts, auth logic, the `canvas` alias, `hp_field`, or the dual contact-form paths. Do not deploy or push.
+**Scope guard:** visuals, layout, copy and motion. Do not change API contracts, auth logic, the `canvas` alias, `hp_field`, or the dual contact-form paths. Do not deploy. Work on branch `phase-3-redesign` (cut from `phase-2-frontend`); commit/push there only when the user asks, never to `main`.
 
 ## Gate status
 
@@ -56,13 +56,23 @@ Split layout: form on paper at left, a quiet ledger specimen panel at right (hid
 - Reduced-motion check (hero shows static final frame), keyboard pass (focus order, visible focus), contrast check against WCAG AA.
 - Re-run the Phase 2 functional walkthrough to confirm nothing regressed (upload, edit/save, delete, settings, contact form with JS disabled still posts natively).
 
+## Deviations made while building (this file is the source of truth)
+
+- **Pricing**: the old "Pro $19 / 100 credits" and "Enterprise" tiers were placeholders with no backing. The landing page now shows a price list (5 signup credits, 1 credit per page, 0 for rejected/duplicate/failed, "more credits: planned, not on sale yet" linking to Contact). No prices were invented.
+- **About** was rewritten: its "99% / <30s / 3+" stat cards were invented and are gone.
+- **Document detail**: the ledger is always editable (no separate Edit mode); a sticky "unsaved changes" bar appears when dirty. Source file is shown inline, not in a dialog (`DocumentPreviewDialog` replaced by `SourcePreview`; `invoice-editor.tsx` replaced by `invoice-ledger.tsx`). `pricing-cta.tsx` and `public/hero_section_bg.png` were deleted.
+- **Documents list** search and status filter query the API (`q`, `status`) so they reach beyond the 100 loaded rows.
+- **Settings** controls save optimistically and roll back on error. Email-in regeneration and account deletion use inline confirmation (typed phrase `delete my account`), no `window.confirm`, no dialogs.
+- The OTP email template, OG/Twitter images, icons and manifest were moved onto the new palette too (satori cannot load Besley, so the social card uses its default sans).
+- No `DESIGN.json` sidecar was written (the plan asks only for `DESIGN.md`).
+
 ## Exit criteria
 
-- [ ] `PRODUCT.md` and `DESIGN.md` exist at the repo root; CLAUDE.md points to DESIGN.md.
-- [ ] Every marketing, auth and dashboard screen restyled; bans honoured; no leftover old-brand imagery.
-- [ ] Screenshots, reduced-motion, keyboard and contrast checks done and results recorded.
-- [ ] `npm run build` green; Phase 2 functionality unchanged.
+- [x] `PRODUCT.md` and `DESIGN.md` exist at the repo root; CLAUDE.md points to DESIGN.md.
+- [x] Every marketing, auth and dashboard screen restyled; bans honoured; no leftover old-brand imagery.
+- [x] Screenshots, reduced-motion, keyboard and contrast checks done and results recorded (HANDOFF, Phase 3 entry).
+- [x] `npm run build` green; Phase 2 functionality unchanged (re-walked; see HANDOFF for what was and was not exercised).
 
 ## Handoff (do this last)
 
-Append a HANDOFF.md entry using its template. Must include: final font and token choices, where `DESIGN.md`/`PRODUCT.md` live, any copy that makes product claims the owner should review, screenshot location, and any UI debt left. Set Phase 3 to "done". Do not commit or push (Phase 4 owns the first push).
+Append a HANDOFF.md entry using its template. Must include: final font and token choices, where `DESIGN.md`/`PRODUCT.md` live, any copy that makes product claims the owner should review, screenshot location, and any UI debt left. Set Phase 3 to "done". Commit/push to `phase-3-redesign` only if the user asks (Phase 4 owns the first push to `main`).

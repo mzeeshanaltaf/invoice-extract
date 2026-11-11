@@ -40,7 +40,7 @@ const COPY = {
   "email-verification": {
     subject: "Verify your email",
     heading: "Verify your email",
-    intro: "Enter this code to finish setting up your InvoiceExtract account.",
+    intro: "Enter this code to finish setting up your InvoicExtract account.",
     outro: "If you didn't create an account, you can safely ignore this email.",
   },
   "forget-password": {
@@ -48,7 +48,7 @@ const COPY = {
     heading: "Reset your password",
     intro: "Enter this code to choose a new password.",
     outro:
-      "If you didn't request a password reset, you can safely ignore this email — your password won't change.",
+      "If you didn't request a password reset, you can safely ignore this email. Your password won't change.",
   },
 } as const;
 
@@ -57,34 +57,34 @@ function otpTemplate(otp: string, type: OtpEmailType) {
 
   const html = `<!doctype html>
 <html lang="en">
-  <body style="margin:0;padding:0;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <body style="margin:0;padding:0;background-color:#faf6ee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
     <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Your code is ${otp}</div>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;padding:32px 12px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#faf6ee;padding:32px 12px;">
       <tr><td align="center">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#ffffff;border:1px solid #e2e8f0;border-radius:12px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#fefcf8;border:1px solid #ddd7c9;border-radius:6px;">
           <tr><td style="padding:32px 32px 0 32px;">
             <table role="presentation" cellpadding="0" cellspacing="0"><tr>
               <td style="padding-right:10px;line-height:0;">
-                <img src="${PUBLIC_URL}/apple-icon" width="32" height="32" alt="" style="display:block;width:32px;height:32px;border:0;border-radius:8px;" />
+                <img src="${PUBLIC_URL}/apple-icon" width="32" height="32" alt="" style="display:block;width:32px;height:32px;border:0;border-radius:6px;" />
               </td>
-              <td style="font-size:18px;font-weight:600;color:#0f172a;">InvoiceExtract</td>
+              <td style="font-family:Georgia,'Times New Roman',serif;font-size:19px;font-weight:700;color:#121a2b;">InvoicExtract</td>
             </tr></table>
           </td></tr>
           <tr><td style="padding:24px 32px 0 32px;">
-            <h1 style="margin:0;font-size:22px;font-weight:700;color:#0f172a;">${heading}</h1>
-            <p style="margin:8px 0 0 0;font-size:14px;line-height:22px;color:#475569;">${intro}</p>
+            <h1 style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:24px;font-weight:700;color:#121a2b;">${heading}</h1>
+            <p style="margin:8px 0 0 0;font-size:14px;line-height:22px;color:#4f5869;">${intro}</p>
           </td></tr>
           <tr><td style="padding:24px 32px 0 32px;">
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1ece1;border:1px solid #ddd7c9;border-radius:6px;">
               <tr><td align="center" style="padding:20px 16px;">
-                <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:32px;font-weight:700;letter-spacing:10px;color:#0f172a;">${otp}</span>
+                <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:32px;font-weight:700;letter-spacing:10px;color:#121a2b;">${otp}</span>
               </td></tr>
             </table>
-            <p style="margin:12px 0 0 0;font-size:13px;color:#64748b;">This code expires in ${EXPIRY_MINUTES} minutes.</p>
+            <p style="margin:12px 0 0 0;font-size:13px;color:#4f5869;">This code expires in ${EXPIRY_MINUTES} minutes.</p>
           </td></tr>
           <tr><td style="padding:24px 32px 32px 32px;">
-            <hr style="border:none;border-top:1px solid #e2e8f0;margin:0 0 16px 0;" />
-            <p style="margin:0;font-size:12px;line-height:20px;color:#94a3b8;">${outro}</p>
+            <hr style="border:none;border-top:1px solid #ddd7c9;margin:0 0 16px 0;" />
+            <p style="margin:0;font-size:12px;line-height:20px;color:#4f5869;">${outro}</p>
           </td></tr>
         </table>
       </td></tr>

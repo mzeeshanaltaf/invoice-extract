@@ -3,40 +3,40 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Terms of Service",
   description:
-    "Terms of Service for InvoiceExtract — the rules and guidelines for using our invoice extraction service.",
+    "Terms of Service for InvoicExtract: the rules and guidelines for using our invoice extraction service.",
   alternates: { canonical: "/terms" },
   openGraph: {
-    title: "Terms of Service — InvoiceExtract",
+    title: "Terms of Service | InvoicExtract",
     description:
-      "Terms of Service for InvoiceExtract — the rules and guidelines for using our invoice extraction service.",
+      "Terms of Service for InvoicExtract: the rules and guidelines for using our invoice extraction service.",
     url: "/terms",
   },
   twitter: {
-    title: "Terms of Service — InvoiceExtract",
+    title: "Terms of Service | InvoicExtract",
     description:
-      "Terms of Service for InvoiceExtract — the rules and guidelines for using our invoice extraction service.",
+      "Terms of Service for InvoicExtract: the rules and guidelines for using our invoice extraction service.",
   },
 };
 
 export default function TermsPage() {
   return (
-    <section className="px-4 py-24 md:py-32">
-      <div className="container mx-auto max-w-3xl">
-        <p className="mb-2 text-sm font-semibold tracking-widest uppercase text-primary">
+    <section className="px-4 py-14 sm:px-6 md:py-20">
+      <div className="mx-auto max-w-3xl">
+        <p className="eyebrow">
           Legal
         </p>
-        <h1 className="mb-4 text-4xl font-extrabold tracking-tight">
+        <h1 className="font-display mt-3 mb-3 text-4xl font-extrabold tracking-tight md:text-5xl">
           Terms of Service
         </h1>
-        <p className="mb-10 text-sm text-muted-foreground">
+        <p className="text-muted-foreground mb-10 text-sm">
           Last updated: March 9, 2026
         </p>
 
-        <div className="prose prose-neutral dark:prose-invert max-w-none space-y-8 text-sm leading-relaxed text-muted-foreground [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mb-3 [&_h2]:mt-0">
+        <div className="text-muted-foreground max-w-none text-[0.9375rem] leading-relaxed [&>section]:border-border [&>section]:border-t [&>section]:py-6 [&_h2]:font-display [&_h2]:text-foreground [&_h2]:mt-0 [&_h2]:mb-3 [&_h2]:text-xl [&_h2]:font-bold">
           <section>
             <h2>1. Acceptance of Terms</h2>
             <p>
-              By accessing or using InvoiceExtract (&quot;the Service&quot;), you
+              By accessing or using InvoicExtract (&quot;the Service&quot;), you
               agree to be bound by these Terms of Service. If you do not agree
               to these terms, you may not use the Service.
             </p>
@@ -45,7 +45,7 @@ export default function TermsPage() {
           <section>
             <h2>2. Description of Service</h2>
             <p>
-              InvoiceExtract is an AI-powered invoice data extraction platform.
+              InvoicExtract is an AI-powered invoice data extraction platform.
               Users can upload invoice documents (PDF, PNG, JPEG) and receive
               structured data output including line items, totals, vendor
               details, and other invoice fields.
@@ -151,7 +151,7 @@ export default function TermsPage() {
             <h2>9. Intellectual Property</h2>
             <p>
               The Service, including its design, features, code, and AI models,
-              is owned by InvoiceExtract and protected by intellectual property
+              is owned by InvoicExtract and protected by intellectual property
               laws. You may not copy, modify, distribute, or create derivative
               works based on the Service without our prior written consent.
             </p>
@@ -160,7 +160,7 @@ export default function TermsPage() {
           <section>
             <h2>10. Limitation of Liability</h2>
             <p>
-              To the maximum extent permitted by law, InvoiceExtract shall not
+              To the maximum extent permitted by law, InvoicExtract shall not
               be liable for any indirect, incidental, special, consequential,
               or punitive damages resulting from your use of the Service,
               including but not limited to loss of data, loss of profits, or

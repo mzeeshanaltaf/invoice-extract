@@ -7,8 +7,8 @@ import { OTP_SENDER_EMAIL } from "@/lib/otp-sender";
  */
 export function EmailDeliveryNote() {
   return (
-    <p className="rounded-md border border-border bg-muted/40 px-3 py-2.5 text-center text-xs text-muted-foreground">
-      Can&apos;t find the email? Check your spam or junk folder — it arrives from{" "}
+    <p className="rounded-md border border-border bg-muted px-3 py-2.5 text-xs text-muted-foreground">
+      Can&apos;t find the email? Check your spam or junk folder. It arrives from{" "}
       <span className="font-medium break-all text-foreground">{OTP_SENDER_EMAIL}</span>.
     </p>
   );

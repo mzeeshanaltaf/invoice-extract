@@ -4,7 +4,7 @@ Guidance for working in this repo. Read this before making changes.
 
 ## What this is
 
-InvoiceExtract — a Next.js 16 (App Router, React 19, TypeScript, `src/` layout)
+InvoicExtract — a Next.js 16 (App Router, React 19, TypeScript, `src/` layout)
 app for AI invoice data extraction. Tailwind v4 + shadcn/ui (new-york). Live at
 https://invoicextract.zeeshanai.cloud.
 
@@ -121,6 +121,18 @@ Umami (self-hosted, cookieless). Mounted in `src/app/layout.tsx` via
 - **DB host in production** is the docker0 gateway `10.0.0.1:5432` (private,
   firewall-independent), not the public IP. The DB is a shared Postgres container
   on the same VPS; Better Auth tables are in the `invoice_extract` schema.
+
+## Design system (read before any UI work)
+
+The UI follows the "paper and ledger" system. **Load [DESIGN.md](DESIGN.md)** (tokens,
+components, motion, do's and don'ts) and [PRODUCT.md](PRODUCT.md) (users, tone,
+anti-references) before touching marketing, auth or dashboard UI; the tokens
+themselves are in `src/app/globals.css`. Marketing is brand register, the app
+and auth screens are product register. Rules that bite: vermilion only for the
+one primary action and stamps, ledger green only for extracted/verified, figures
+in `.figures` (Geist Mono), no em dashes in copy, no gradient text/glass/icon
+tiles, never `outline-none` on a control (it cancels the focus outline in
+Tailwind v4), errors inline (no toasts).
 
 ## Conventions
 

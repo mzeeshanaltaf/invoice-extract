@@ -8,22 +8,22 @@ export default function AppleIcon() {
     (
       <div
         style={{
-          background: "#0f172a",
+          background: "#c83314",
           width: "100%",
           height: "100%",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          borderRadius: "36px",
+          borderRadius: "30px",
           fontFamily: "sans-serif",
         }}
       >
         <span
           style={{
-            color: "#a5b4fc",
-            fontSize: "80px",
+            color: "#fdfaf3",
+            fontSize: "92px",
             fontWeight: 800,
-            letterSpacing: "-2px",
+            letterSpacing: "-3px",
           }}
         >
           IE

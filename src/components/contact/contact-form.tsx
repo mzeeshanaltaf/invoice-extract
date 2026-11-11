@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Send, CheckCircle2 } from "lucide-react";
+import { Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Stamp } from "@/components/brand/stamp";
 
 type Status = "idle" | "loading" | "success" | "error";
 
@@ -62,14 +64,14 @@ export function ContactForm({ initialSuccess = false, initialError }: Props) {
 
   if (status === "success") {
     return (
-      <div className="flex flex-col items-center gap-4 py-10 text-center">
-        <span className="flex size-14 items-center justify-center rounded-full bg-primary/10">
-          <CheckCircle2 className="size-7 text-primary" />
-        </span>
+      <div className="flex flex-col items-start gap-5 py-6" role="status">
+        <Stamp tone="green" size="lg" rotate={-4}>
+          Message sent
+        </Stamp>
         <div>
-          <h2 className="text-lg font-semibold">Message sent!</h2>
-          <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">
-            Thank you for your message. We&apos;ll get back to you as soon as possible.
+          <h2 className="font-display text-xl font-bold">Thank you.</h2>
+          <p className="text-muted-foreground mt-1.5 max-w-sm text-sm leading-relaxed">
+            We will reply to the address you gave as soon as we can.
           </p>
         </div>
         <Button
@@ -142,7 +144,7 @@ export function ContactForm({ initialSuccess = false, initialError }: Props) {
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="message">Message</Label>
-        <textarea
+        <Textarea
           id="message"
           name="message"
           required
@@ -151,7 +153,6 @@ export function ContactForm({ initialSuccess = false, initialError }: Props) {
           placeholder="How can we help you?"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          className="border-input bg-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex w-full resize-y rounded-md border px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
         />
         <p
           className={`text-right text-xs ${
@@ -163,7 +164,7 @@ export function ContactForm({ initialSuccess = false, initialError }: Props) {
       </div>
 
       {status === "error" && (
-        <p className="rounded-md border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-sm text-destructive">
+        <p role="alert" className="rounded-md border border-destructive/40 px-3.5 py-2.5 text-sm text-destructive">
           {errorMsg}
         </p>
       )}
@@ -174,7 +175,7 @@ export function ContactForm({ initialSuccess = false, initialError }: Props) {
         ) : (
           <Send className="size-4" />
         )}
-        {status === "loading" ? "Sending…" : "Send Message"}
+        {status === "loading" ? "Sending…" : "Send message"}
       </Button>
     </form>
   );

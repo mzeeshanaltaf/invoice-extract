@@ -1,147 +1,125 @@
 "use client";
 
+import Link from "next/link";
 import { useDashboardData } from "@/lib/dashboard-context";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { PageHeader, SectionLabel } from "@/components/dashboard/page-header";
 import { formatDate } from "@/lib/utils";
-import Link from "next/link";
-import { CreditCard } from "lucide-react";
+
+const TYPE_LABEL: Record<string, string> = {
+  signup_bonus: "Signup",
+  document_processing: "Pages read",
+  refund: "Refund",
+  manual_adjustment: "Adjustment",
+};
 
 export default function CreditsPage() {
-  const { creditBalance, creditHistory, isLoading } = useDashboardData();
+  const { credits, creditHistory, isLoading } = useDashboardData();
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <Skeleton className="h-8 w-32" />
-          <Skeleton className="mt-2 h-4 w-72" />
-        </div>
-        <Card>
-          <CardContent className="pt-6">
-            <Skeleton className="h-14 w-24" />
-            <Skeleton className="mt-2 h-4 w-32" />
-          </CardContent>
-        </Card>
-        <div>
-          <Skeleton className="mb-4 h-6 w-48" />
-          <Card>
-            <CardContent className="pt-6 space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-8 w-full" />
-              ))}
-            </CardContent>
-          </Card>
+      <div aria-hidden="true">
+        <PageHeader title="Credits" />
+        <Skeleton className="mb-8 h-28 w-full" />
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-full" />
+          ))}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Credits</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage your credit balance and view transaction history.
-        </p>
-      </div>
+    <div>
+      <PageHeader
+        title="Credits"
+        description="One credit reads one page. A credit is only spent when a document is read successfully; rejected, duplicate and failed files cost nothing."
+      />
 
-      {/* Balance card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Current Balance
-            </CardTitle>
-            <CreditCard className="h-5 w-5 text-muted-foreground" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <p className="text-5xl font-bold">{creditBalance}</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            credits remaining
-          </p>
-        </CardContent>
-      </Card>
+      {/* Balance, set as a ledger statement */}
+      <dl className="border-border bg-card mb-10 grid rounded-md border sm:grid-cols-3">
+        <div className="px-5 py-4">
+          <dt className="eyebrow">Available</dt>
+          <dd className="mt-1">
+            <span className="figures block text-4xl leading-tight font-medium">{credits.available}</span>
+            <span className="text-muted-foreground mt-1 block text-xs">what a new upload can spend</span>
+          </dd>
+        </div>
+        <div className="border-border border-t px-5 py-4 sm:border-t-0 sm:border-l">
+          <dt className="eyebrow">Held</dt>
+          <dd className="mt-1">
+            <span className="figures block text-4xl leading-tight font-medium">{credits.held}</span>
+            <span className="text-muted-foreground mt-1 block text-xs">reserved by documents in progress</span>
+          </dd>
+        </div>
+        <div className="border-border border-t px-5 py-4 sm:border-t-0 sm:border-l">
+          <dt className="eyebrow">Balance</dt>
+          <dd className="mt-1">
+            <span className="figures block text-4xl leading-tight font-medium">{credits.current_balance}</span>
+            <span className="text-muted-foreground mt-1 block text-xs">available plus held</span>
+          </dd>
+        </div>
+      </dl>
 
-      {/* Transaction history */}
-      <div>
-        <h2 className="mb-4 text-lg font-semibold">Transaction History</h2>
+      <section aria-labelledby="ledger-h">
+        <SectionLabel aside={creditHistory.length > 0 ? `${creditHistory.length} entries` : undefined}>
+          <span id="ledger-h">Transaction ledger</span>
+        </SectionLabel>
         {creditHistory.length === 0 ? (
-          <Card>
-            <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              No transactions yet.
-            </CardContent>
-          </Card>
+          <p className="text-muted-foreground py-8 text-sm">
+            Nothing yet. Entries appear here when your signup credits arrive and when pages are
+            read.
+          </p>
         ) : (
-          <Card>
+          <div className="border-border bg-card rounded-md border">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="hover:bg-transparent">
                   <TableHead>Date</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>File</TableHead>
-                  <TableHead>Type</TableHead>
+                  <TableHead>Entry</TableHead>
+                  <TableHead className="hidden sm:table-cell">Type</TableHead>
                   <TableHead className="text-right">Credits</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {creditHistory.map((tx) => (
                   <TableRow key={tx.transaction_id}>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="text-muted-foreground align-top text-sm">
                       {formatDate(tx.created_at)}
                     </TableCell>
-                    <TableCell className="font-medium">
-                      {tx.description}
-                    </TableCell>
-                    <TableCell>
-                      {tx.reference_file_id && tx.file_name_snapshot ? (
+                    <TableCell className="max-w-64 align-top whitespace-normal sm:max-w-md">
+                      <p className="font-medium">{tx.description}</p>
+                      {tx.reference_file_id && tx.file_name_snapshot && (
                         <Link
                           href={`/dashboard/documents/${tx.reference_file_id}`}
-                          className="text-sm text-primary hover:underline"
+                          className="text-muted-foreground block truncate text-xs underline-offset-4 hover:underline"
                         >
                           {tx.file_name_snapshot}
                         </Link>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
                       )}
                     </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="text-xs">
-                        {tx.transaction_type === "signup_bonus"
-                          ? "Signup"
-                          : tx.transaction_type === "document_processing"
-                            ? "Processing"
-                            : tx.transaction_type}
+                    <TableCell className="hidden align-top sm:table-cell">
+                      <Badge variant="secondary">
+                        {TYPE_LABEL[tx.transaction_type] ?? tx.transaction_type}
                       </Badge>
                     </TableCell>
                     <TableCell
-                      className={`text-right font-semibold ${
-                        tx.credits_delta > 0
-                          ? "text-green-600"
-                          : "text-red-500"
+                      className={`figures text-right align-top font-medium ${
+                        tx.credits_delta > 0 ? "text-success" : ""
                       }`}
                     >
-                      {tx.credits_delta > 0
-                        ? `+${tx.credits_delta}`
-                        : tx.credits_delta}
+                      {tx.credits_delta > 0 ? `+${tx.credits_delta}` : tx.credits_delta}
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          </Card>
+          </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

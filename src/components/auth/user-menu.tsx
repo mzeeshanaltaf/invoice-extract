@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { LayoutDashboard, LogOut } from "lucide-react";
 import { authClient, useSession } from "@/lib/auth-client";
+import { resetApiAuth } from "@/lib/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -30,6 +31,8 @@ export function UserMenu({ showDashboardLink = false }: { showDashboardLink?: bo
   if (!user) return null;
 
   async function handleSignOut() {
+    // Drop the cached API token so the next user in this tab can't reuse it.
+    resetApiAuth();
     await authClient.signOut();
     router.push("/");
     router.refresh();
@@ -37,7 +40,7 @@ export function UserMenu({ showDashboardLink = false }: { showDashboardLink?: bo
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <DropdownMenuTrigger className="rounded-full">
         <Avatar>
           {user.image && <AvatarImage src={user.image} alt={user.name ?? "User"} />}
           <AvatarFallback>{initials(user.name, user.email)}</AvatarFallback>

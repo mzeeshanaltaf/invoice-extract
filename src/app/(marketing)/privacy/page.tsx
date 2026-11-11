@@ -3,40 +3,40 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description:
-    "Privacy Policy for InvoiceExtract — how we collect, use, and protect your data.",
+    "Privacy Policy for InvoicExtract: how we collect, use, and protect your data.",
   alternates: { canonical: "/privacy" },
   openGraph: {
-    title: "Privacy Policy — InvoiceExtract",
+    title: "Privacy Policy | InvoicExtract",
     description:
-      "Privacy Policy for InvoiceExtract — how we collect, use, and protect your data.",
+      "Privacy Policy for InvoicExtract: how we collect, use, and protect your data.",
     url: "/privacy",
   },
   twitter: {
-    title: "Privacy Policy — InvoiceExtract",
+    title: "Privacy Policy | InvoicExtract",
     description:
-      "Privacy Policy for InvoiceExtract — how we collect, use, and protect your data.",
+      "Privacy Policy for InvoicExtract: how we collect, use, and protect your data.",
   },
 };
 
 export default function PrivacyPage() {
   return (
-    <section className="px-4 py-24 md:py-32">
-      <div className="container mx-auto max-w-3xl">
-        <p className="mb-2 text-sm font-semibold tracking-widest uppercase text-primary">
+    <section className="px-4 py-14 sm:px-6 md:py-20">
+      <div className="mx-auto max-w-3xl">
+        <p className="eyebrow">
           Legal
         </p>
-        <h1 className="mb-4 text-4xl font-extrabold tracking-tight">
+        <h1 className="font-display mt-3 mb-3 text-4xl font-extrabold tracking-tight md:text-5xl">
           Privacy Policy
         </h1>
-        <p className="mb-10 text-sm text-muted-foreground">
-          Last updated: July 23, 2026
+        <p className="text-muted-foreground mb-10 text-sm">
+          Last updated: November 11, 2026
         </p>
 
-        <div className="prose prose-neutral dark:prose-invert max-w-none space-y-8 text-sm leading-relaxed text-muted-foreground [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mb-3 [&_h2]:mt-0">
+        <div className="text-muted-foreground max-w-none text-[0.9375rem] leading-relaxed [&>section]:border-border [&>section]:border-t [&>section]:py-6 [&_h2]:font-display [&_h2]:text-foreground [&_h2]:mt-0 [&_h2]:mb-3 [&_h2]:text-xl [&_h2]:font-bold">
           <section>
             <h2>1. Introduction</h2>
             <p>
-              InvoiceExtract (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) is committed
+              InvoicExtract (&quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) is committed
               to protecting your privacy. This Privacy Policy describes how we
               collect, use, and safeguard your information when you use our
               invoice data extraction service.
@@ -64,7 +64,7 @@ export default function PrivacyPage() {
               <li>
                 <strong className="text-foreground">Analytics Data:</strong>{" "}
                 We use a self-hosted, privacy-friendly analytics tool (Umami) to
-                collect aggregate, anonymous usage statistics — such as page
+                collect aggregate, anonymous usage statistics, such as page
                 views, referring sites, and general device, browser, and country
                 information. This data is cookieless, is not used to personally
                 identify you, and is not shared with any third party.
@@ -92,11 +92,18 @@ export default function PrivacyPage() {
           <section>
             <h2>4. Data Processing and Storage</h2>
             <p>
-              Uploaded invoices are processed using AI models (Mistral AI) to
-              extract structured data. We retain the extracted data and document
-              metadata for your account history. Original uploaded files may be
-              retained temporarily for processing and are not used to train AI
-              models.
+              Uploaded invoices are processed using AI models provided by
+              OpenAI to check that a document is an invoice and to extract
+              structured data from it. We retain the extracted data and
+              document metadata for your account history. Original uploaded
+              files are stored until you delete them or until the retention
+              period you choose in Settings ends, whichever comes first. We do
+              not use your documents to train AI models.
+            </p>
+            <p className="mt-3">
+              You can delete individual documents, or your whole account along
+              with all of its documents, original files and credits, from the
+              dashboard at any time.
             </p>
           </section>
 
@@ -113,12 +120,13 @@ export default function PrivacyPage() {
               </li>
               <li>
                 <strong className="text-foreground">AI Processing:</strong>{" "}
-                Mistral AI, for document text extraction and analysis.
+                OpenAI, which processes the documents you upload (page images
+                and the text read from them) to extract invoice data.
               </li>
               <li>
                 <strong className="text-foreground">Infrastructure:</strong>{" "}
-                Hosting and workflow automation providers for running the
-                service.
+                Hosting, email delivery and workflow automation providers for
+                running the service.
               </li>
             </ul>
           </section>

@@ -28,6 +28,7 @@ export function OtpField({
       disabled={disabled}
       autoFocus={autoFocus}
       containerClassName="justify-center"
+      aria-label="6-digit code"
     >
       <InputOTPGroup className="gap-2">
         {[0, 1, 2, 3, 4, 5].map((i) => (
