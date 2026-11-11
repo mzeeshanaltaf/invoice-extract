@@ -20,9 +20,10 @@
 
 ## Exit criteria
 
-- [ ] Old tables dropped (user confirmed), production verified afterwards.
-- [ ] CLAUDE.md, README, `.env.example`s, and memory files updated.
-- [ ] Stale reference sweep clean; changes committed and pushed (use the `ship` skill if the user asks).
+- [x] Old tables dropped (user confirmed), production verified afterwards (health, readiness, auth endpoints, clean logs; signed-in flows not re-walked, see HANDOFF).
+- [x] CLAUDE.md, README, `.env.example`s, and memory files updated.
+- [x] Stale reference sweep clean (only the intentional contact-form `N8N_*` and `source` value remain).
+- [ ] Changes committed and pushed (not done: the user has not asked; use the `ship` skill if they do).
 
 ## Handoff (do this last)
 

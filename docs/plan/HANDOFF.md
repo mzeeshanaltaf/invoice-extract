@@ -10,7 +10,7 @@ Each session appends one entry at the end of its phase. Newest at the bottom. Ne
 | 2 Front end integration | done | 2026-11-11 | `npm run build` green; full local walkthrough passed against the Phase 1 backend; contact form stays on n8n (user decision) |
 | 3 Redesign | done | 2026-11-11 | `npm run build` green; 96 screenshots; axe 0 violations (16 screens x 2 themes x 1440/375); Phase 2 flows re-walked |
 | 4 Deploy | done | 2026-11-11 | API app, MinIO, DNS, jwks migration, Resend inbound all live; merged to `main` (PR #4); upload and email-in walkthroughs passed on production |
-| 5 Cutover | not started | | |
+| 5 Cutover | done | 2026-11-11 | Old tables dropped (owner approved), docs/memory/sweep done, build + pytest green; **not committed or pushed**; signed-in production flows not re-walked (see entry) |
 
 ## Entry template (copy for each phase)
 
@@ -266,3 +266,42 @@ Backend defaults (`BETTER_AUTH_URL`, `ALLOWED_ORIGINS` = `http://localhost:3000`
 - Gate thresholds still validated on synthetic samples only.
 
 **Next phase must know:** the live site now runs the rebuilt stack, so Phase 5's table drop is only safe with a fresh look at what still reads them (nothing in `src/` or `backend/` should). The n8n instance is still needed for the contact form only. CLAUDE.md and the memory file `invoice-extract-deployment.md` are stale (they describe nixpacks, n8n and a single app); rewrite them with the uuids above.
+
+### Phase 5: Cutover and housekeeping  (2026-11-11)
+**Result:** done, except that nothing is committed and the signed-in production flows were not re-walked. The table drop was first held back (the permission check blocked a production read, and the plan wants owner confirmation); the owner then approved it in the same session and it was run (see "Table drop" below). A follow-up correction: the web app's Coolify build pack is **Railpack**, not nixpacks (confirmed in Coolify's DB); CLAUDE.md, README and the deployment memory were fixed. Work is on branch `phase-5-cutover` (cut from `phase-4-deploy`, which carries the Phase 4 handoff docs that are not on `main`). **Nothing committed or pushed** (not requested).
+
+**Built / changed:**
+- [CLAUDE.md](../../CLAUDE.md) rewritten: two deployables, browser → FastAPI with Better Auth JWT, `user_id` invariant, async upload pipeline, MinIO/retention/email-in, no signup hook, two-step account deletion, contact form still on n8n, Coolify layout (web, API, MinIO, workflow secrets, env split), gotchas (nullable invoice data, `NEXT_PUBLIC_API_URL`, `.env.local` points at production, no `jwtClient()`), pointer to DESIGN.md/PRODUCT.md and `docs/plan/`. Commands cover web, backend run/test/migrate.
+- [README.md](../../README.md) rewritten (features, architecture diagram, stack, 4-step local setup, env block, project structure, API table, troubleshooting, deployment). [backend/.env.example](../../backend/.env.example) gained a note that `RESEND_API_KEY` must be full access. The root `.env.example` was already current (checked: no `N8N_WEBHOOK_BASE_URL`, has `NEXT_PUBLIC_API_URL`); both are gitignored.
+- Memory (`C:\Users\Zeeshan\.claude\projects\...\memory\`): `invoice-extract-deployment.md` and `invoice-extract-better-auth.md` rewritten with the uuids, MinIO, API domain, Resend inbound, JWT plugin; `invoice-extract-local-env.md` extended; `MEMORY.md` index lines updated.
+- Dead files removed (staged deletions): `IMPLEMENTATION_PLAN.md` (Clerk/n8n era), `src/components/ui/{shimmering-text,progress,separator,tooltip}.tsx` (unreferenced). `hero_section_bg.png` was already gone. Kept `card.tsx` and `dialog.tsx` (unreferenced today but covered by DESIGN.md). All npm dependencies and all backend requirements are still imported somewhere.
+- [.gitignore](../../.gitignore): `/n8n_workflows/*.json` added. The untracked n8n exports hold a hardcoded webhook key and the repo is public, so they stay on disk as reference but can no longer be committed by a stray `git add .` (the `ship` skill does that).
+
+**Deviations from plan:** none to the plan; the drop is deferred, not changed.
+
+**Env vars / secrets added:** none.
+
+**Verification results (real runs):**
+- Pre-flight, Phase 4 exit criteria checked in the repo, not just the log: phase-4 file boxes ticked, `origin/main` is the PR #4 merge `42d5022`, `deploy.yml` triggers both apps, Dockerfile installs curl. Production: `api/healthz` 200, `api/readyz` 200, site home 200, `/api/auth/jwks` 200, unauthenticated `/v1/credits` 401, `/docs` 200, `/v1/meta/limits` shows inbound enabled on `in.invoicextract.zeeshanai.cloud`.
+- `grep` across `src/`, `backend/`, `.github/`, root docs for the old table names: nothing in `src/` or `backend/app` queries `user_documents`, `user_credit_accounts` or `user_credit_transactions`. Only hits: the migration test's stand-in tables (`backend/tests`), the API's overview field named `user_documents` (not the table), docs, and the n8n exports.
+- `npm run build`: **pass**. Backend `pytest`: **119 passed, 1 skipped** (S3 test, needs MinIO), after starting `invoicextract-dev-postgres` and stopped again afterwards.
+- Stale sweep (`n8n|Mistral|InvoiceExtract|N8N_|clerk|hero_section_bg`) over source and docs: remaining hits are intentional (contact route `N8N_*` and `source: "invoiceextract"`, CLAUDE.md/README contact-form notes, "replaces Clerk/n8n" history notes) or untracked owner files (`docs/SEO Plan - Invoice Extract.md` still says Clerk and `hero_section_bg.png`; `docs/n8n_webhooks.txt`; `.claude/settings.local.json` has an old `@clerk/nextjs` allow rule).
+- CLAUDE.md/README commands spot-checked: `npm run build`, backend `pytest` and the production URLs/endpoints they name were run or curled; `/docs`, `/v1/meta/limits` and the healthchecks exist on production. Not run: the full local two-service walkthrough (unchanged since Phase 3).
+**Table drop (run 2026-11-11 with the owner's explicit approval).**
+- Looked first (read-only): `invoice_extract` held the three old tables with 10 documents, 10 credit accounts and 20 transactions (pre-rebuild dummy data), plus Better Auth tables and the new API tables. The new tables had 0 rows and Better Auth had 1 user. The only foreign keys on the old tables ran between the three of them. **The shared database has same-named tables in other projects' schemas (`document_genie`, `resume_match`, `fit_fusion`); the drop was fully schema-qualified and those are untouched.**
+- Ran one statement, no CASCADE: `DROP TABLE invoice_extract.user_credit_transactions, invoice_extract.user_credit_accounts, invoice_extract.user_documents`.
+- After: `invoice_extract` contains `account, alembic_version, credit_accounts, credit_transactions, documents, inbound_emails, jwks, session, user, user_settings, verification`. Row counts unchanged: `user` 1, `jwks` 1, `session` 0, new tables 0.
+- Production check after the drop (HTTP only): API `/healthz` 200, `/readyz` 200 (DB check), `/v1/meta/limits` 200; site `/`, `/sign-in`, `/api/auth/jwks`, `/api/auth/get-session` 200; API container logs for the last 30 minutes contain no errors or tracebacks.
+- **Not re-walked:** the signed-in flows (login, upload, documents list, credits). Nothing in the API or web app references the dropped tables (grep above) and `/readyz` passes, so a regression is not expected, but do one real upload when convenient.
+
+**Open issues / risks:**
+- Nothing is committed. The working tree holds: README, CLAUDE.md, `.gitignore`, the HANDOFF and phase-5 file edits, and the staged deletions listed above (`backend/.env.example` is gitignored, so it has no diff). `n8n_workflows/Webhooks.txt` is still shown as deleted in the working tree and the untracked owner files (SEO plan, shimmer notes, `docs/n8n_webhooks.txt`) were left alone. If you commit, pushing the branch does not deploy; merging to `main` does.
+- The n8n instance is still required for the contact form only. The webhook key in the old n8n exports was in the repo's working tree and was never committed, but consider rotating it if those files ever left this machine.
+- The full-access Resend key note from Phase 4 still stands (rename it, rotate if leaked). Gate thresholds are still tuned on synthetic documents.
+
+**Candidate next projects** (from [00-overview.md](00-overview.md) "Out of scope"):
+1. Paid credit packs (Stripe or Lemon Squeezy) plus the "ask us for more" copy it would replace.
+2. Public API keys for developers (the API already has the shape; needs key issuance, hashing and per-key limits).
+3. Push to accounting tools / "processed" webhooks.
+4. Off-box MinIO backups (the bucket is the only copy of source files; extracted data lives in Postgres).
+Smaller follow-ups from earlier phases: pagination for the 100-item document list, dark-mode OG cards, retune gate thresholds on real bookkeeper documents, a real inbound email from a normal mailbox, review the privacy-policy and landing-page product claims listed in the Phase 3 entry.
