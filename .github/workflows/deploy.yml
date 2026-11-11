@@ -37,26 +37,34 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Coolify deploy (with retries)
+      - name: Trigger Coolify deploys (web + api, with retries)
         env:
           COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
           COOLIFY_APP_UUID: ${{ secrets.COOLIFY_APP_UUID }}
+          COOLIFY_API_APP_UUID: ${{ secrets.COOLIFY_API_APP_UUID }}
         run: |
           set -u
-          for i in 1 2 3 4 5; do
-            code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 30 \
-              "${COOLIFY_URL}/api/v1/deploy?uuid=${COOLIFY_APP_UUID}&force=false" \
-              -H "Authorization: Bearer ${COOLIFY_API_TOKEN}" || echo "000")
-            echo "Attempt $i -> HTTP $code"
-            if [ "$code" = "200" ]; then
-              echo "Deploy queued successfully."
-              exit 0
-            fi
-            if [ "$i" -lt 5 ]; then
-              backoff=$((i * 15)) # 15s, 30s, 45s, 60s
-              echo "Retrying in ${backoff}s..."
-              sleep "$backoff"
-            fi
-          done
-          echo "::error::All 5 attempts to trigger the Coolify deploy failed."
-          exit 1
+          trigger() {
+            name="$1"; uuid="$2"
+            for i in 1 2 3 4 5; do
+              code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 30 \
+                "${COOLIFY_URL}/api/v1/deploy?uuid=${uuid}&force=false" \
+                -H "Authorization: Bearer ${COOLIFY_API_TOKEN}" || echo "000")
+              echo "[$name] attempt $i -> HTTP $code"
+              if [ "$code" = "200" ]; then
+                echo "[$name] deploy queued."
+                return 0
+              fi
+              if [ "$i" -lt 5 ]; then
+                backoff=$((i * 15)) # 15s, 30s, 45s, 60s
+                echo "[$name] retrying in ${backoff}s..."
+                sleep "$backoff"
+              fi
+            done
+            echo "::error::All 5 attempts to trigger the $name deploy failed."
+            return 1
+          }
+          status=0
+          trigger web "$COOLIFY_APP_UUID" || status=1
+          trigger api "$COOLIFY_API_APP_UUID" || status=1
+          exit $status
