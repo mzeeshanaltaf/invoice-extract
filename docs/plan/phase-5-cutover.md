@@ -6,11 +6,11 @@
 
 ## Tasks
 
-1. Drop the three old n8n tables (`user_documents`, `user_credit_accounts`, `user_credit_transactions` in schema `invoice_extract`) after production is verified. Never touch Better Auth tables. The n8n workflows themselves are left for the user to deactivate in n8n; the JSON exports stay in `n8n_workflows/` as reference.
+1. Drop the three old n8n tables (`user_documents`, `user_credit_accounts`, `user_credit_transactions` in schema `invoice_extract`) after production is verified. Never touch Better Auth tables. The n8n workflows themselves are left for the user to deactivate in n8n, **except the contact-form webhook, which the site still calls (Phase 2 task 6)**; the JSON exports stay in `n8n_workflows/` as reference.
 2. Rewrite CLAUDE.md: architecture section "n8n is the backend" becomes the FastAPI service (JWT flow, `user_id` invariant, MinIO, worker, email-in, retention); commands (backend run/test/migrate); env; deployment (two Coolify apps, workflow secret); gotchas; pointer to `DESIGN.md`/`PRODUCT.md`; remove the signup-credits hook note; rename to InvoicExtract.
 3. Update README and local `.env.example` files (gitignored; document new vars in README) for both the front end and `backend/`.
 4. Update the two project memory files (`invoice-extract-deployment.md`, `invoice-extract-better-auth.md`) and add any new durable facts (API domain, MinIO, JWT plugin). Keep `MEMORY.md` index lines accurate.
-5. Final sweep: grep for stale references (`n8n`, `Mistral`, `InvoiceExtract`, `N8N_`), dead files (`hero_section_bg.png`, old API routes), and unused dependencies.
+5. Final sweep: grep for stale references (`n8n`, `Mistral`, `InvoiceExtract`, `N8N_`; the contact form's `N8N_API_KEY`/`N8N_CONTACT_WEBHOOK_URL` and its `source: "invoiceextract"` payload value are intentional, and README/CLAUDE.md still carry the old n8n/Mistral prose), dead files (`hero_section_bg.png`, old API routes), and unused dependencies.
 
 ## Verification
 

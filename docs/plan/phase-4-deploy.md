@@ -13,16 +13,16 @@
    - 3a. MinIO: deploy as a Coolify service on the shared Docker network with a persistent volume, no public domain, private bucket `invoicextract-documents`, and a dedicated access key (per the `add-minio-storage-to-coolify` skill). Verify it is not reachable from the public internet.
    - 3b. Email-in: enable receiving in Resend for `in.invoicextract.zeeshanai.cloud`, add the MX record Resend specifies in Hostinger DNS (subdomain only), create the `email.received` webhook pointing at `https://api.invoicextract.zeeshanai.cloud/v1/inbound/email`, and store its signing secret. If the current Resend plan or key does not allow inbound, stop and tell the user before changing anything else; the rest of the build does not depend on it.
 4. Backend env (runtime): `DATABASE_URL` with host `10.0.0.1:5432` (docker0 gateway), `OPENAI_API_KEY`, `BETTER_AUTH_URL`, `ALLOWED_ORIGINS`, `ADMIN_API_KEY`, `S3_*`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `INBOUND_EMAIL_DOMAIN`, tunables. Alembic `upgrade head` runs on container start.
-5. Front end env (Coolify): `NEXT_PUBLIC_API_URL` (**build-time**), `CONTACT_TO_EMAIL`; remove `N8N_*`. Also run the Better Auth migration (`jwks` table) against the production DB before the new front end goes live.
+5. Front end env (Coolify): `NEXT_PUBLIC_API_URL` (**build-time**); remove `N8N_WEBHOOK_BASE_URL` only (the contact form still uses n8n, so keep `N8N_API_KEY` and `N8N_CONTACT_WEBHOOK_URL`; there is no `CONTACT_TO_EMAIL`, see Phase 2 task 6). Also run the Better Auth migration (`jwks` table) against the production DB before the new front end goes live.
 6. [.github/workflows/deploy.yml](../../.github/workflows/deploy.yml): trigger both apps (new repo secret `COOLIFY_API_APP_UUID` for the API app), keeping the retry loop.
-7. Commit and push to `main` (this is the first push of the whole rebuild). Include the previously untracked `docs/plan/`, new `backend/`, etc. as appropriate; do not commit `.env*`. Watch both deployments.
+7. Work on branch `phase-4-deploy` (cut from `phase-3-redesign`, which already contains the earlier phase branches). After the user confirms, merge it into `main` (PR with a merge commit; this is the first push to `main` of the whole rebuild and triggers the deploy). Make sure the earlier untracked reference files (`n8n_workflows/`, `docs/n8n_webhooks.txt`, etc.) are committed or deliberately left out; do not commit `.env*`. Watch both deployments.
 
 ## Verification (this phase)
 
 - `/healthz` returns OK on the API domain; Coolify logs clean for both apps.
 - CORS works from `https://invoicextract.zeeshanai.cloud` (and not from other origins).
 - One full upload on the live site end to end (sign in, upload invoice, see it processed, credits deducted, preview, export).
-- Contact form delivers through Resend.
+- Contact form still delivers through the n8n webhook (unchanged from before the rebuild); send one real message after deploy.
 - Email-in: forward a real invoice to the personal address and watch it appear (if inbound enabled).
 - MinIO not reachable from the public internet; DB host is `10.0.0.1`.
 - Disk and cron on the VPS still healthy after the new builds.

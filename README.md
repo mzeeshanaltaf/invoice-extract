@@ -1,6 +1,6 @@
-# InvoiceExtract
+# InvoicExtract
 
-AI-powered invoice data extraction SaaS. Upload PDFs or images, and get structured invoice data with high accuracy powered by Mistral AI.
+AI-powered invoice data extraction SaaS. Upload PDFs or images, and get structured invoice data with high accuracy powered by OpenAI.
 
 ## Features
 
@@ -336,7 +336,7 @@ The site ships with a full SEO baseline covering crawlability, social sharing, C
 
 ### Metadata
 - **`metadataBase`** — set to `https://invoicextract.zeeshanai.cloud` so relative OG/canonical URLs resolve correctly
-- **Title template** — `%s — InvoiceExtract` so child pages don't need to repeat the brand name
+- **Title template** — `%s — InvoicExtract` so child pages don't need to repeat the brand name
 - **Canonical URLs** — every marketing page declares `alternates.canonical`
 - **Open Graph + Twitter Cards** — default values in root layout; overridden per page
 

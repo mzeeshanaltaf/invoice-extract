@@ -2,7 +2,7 @@
 
 **Prerequisite reading:** [README.md](README.md), [00-overview.md](00-overview.md), [HANDOFF.md](HANDOFF.md). Reference: `n8n_workflows/*.json`, `docs/n8n_webhooks.txt`, [src/lib/types.ts](../../src/lib/types.ts) (invoice schema).
 **Depends on:** nothing. **Unblocks:** Phase 2.
-**Scope guard:** backend only. Do not edit the Next.js app, do not deploy, do not commit/push.
+**Scope guard:** backend only. Do not edit the Next.js app, do not deploy. Commit/push only to branch `phase-1-backend` and only when the user asks; never `main`.
 
 ## Goal
 
@@ -143,4 +143,4 @@ New tables, new names (old n8n tables untouched until Phase 5). Better Auth tabl
 
 ## Handoff (do this last)
 
-Append a HANDOFF.md entry using its template. Must include: how to start the backend locally (command, port, env), how to mint a test JWT, final response shapes for `documents`, `overview`, `credits`, `settings` and the per-file upload result and error codes, the exact `documents.status` values, the polling expectations, the JWT claims/issuer/audience the verifier requires (so Phase 2 configures the Better Auth `jwt()` plugin to match), and any deviation from this file. Set Phase 1 to "done" in the status board. Do not commit.
+Append a HANDOFF.md entry using its template. Must include: how to start the backend locally (command, port, env), how to mint a test JWT, final response shapes for `documents`, `overview`, `credits`, `settings` and the per-file upload result and error codes, the exact `documents.status` values, the polling expectations, the JWT claims/issuer/audience the verifier requires (so Phase 2 configures the Better Auth `jwt()` plugin to match), and any deviation from this file. Set Phase 1 to "done" in the status board. Commit/push to `phase-1-backend` only if the user asks (never `main`).

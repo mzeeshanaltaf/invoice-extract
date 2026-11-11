@@ -36,8 +36,12 @@ yarn-error.log*
 # vercel
 .vercel
 
-# python virtualenv (backend)
-/backend/.venv/
+# python (backend): virtualenv, caches, local dev artefacts
+.venv/
+__pycache__/
+.pytest_cache/
+/backend/.devkeys/
+/backend/.storage/
 
 # typescript
 *.tsbuildinfo

@@ -6,112 +6,184 @@ import {
   useState,
   useEffect,
   useCallback,
+  useMemo,
   useRef,
   type ReactNode,
 } from "react";
-import type {
-  UserAnalytics,
-  CreditTransaction,
-  UserDocument,
-  UserDataResponse,
-  MarkdownInvoiceResponse,
+import { api, ApiError, resetApiAuth } from "@/lib/api";
+import {
+  isInFlight,
+  type CreditTransaction,
+  type Credits,
+  type DocumentDetail,
+  type UserAnalytics,
+  type UserDocument,
 } from "@/lib/types";
+
+/** How often to re-fetch the document list while any document is in flight. */
+const POLL_INTERVAL_MS = 2000;
+/** The list is fetched in one page; the dashboard has no pagination yet. */
+const DOCUMENTS_PAGE_SIZE = 100;
+const HISTORY_PAGE_SIZE = 100;
+
+const EMPTY_CREDITS: Credits = { current_balance: 0, held: 0, available: 0 };
 
 interface DashboardData {
   analytics: UserAnalytics | null;
-  creditBalance: number;
+  /** current_balance, held (reserved by in-flight documents) and available. */
+  credits: Credits;
   creditHistory: CreditTransaction[];
   documents: UserDocument[];
+  /** Total documents on the server (may exceed `documents.length`). */
+  documentsTotal: number;
+  /** True only for the very first load. */
   isLoading: boolean;
+  /** True while at least one document is queued/validating/extracting. */
+  hasInFlight: boolean;
+  /** Last load/poll failure, or null. Cleared by the next success. */
+  error: string | null;
+  /** Re-fetch overview (credits, analytics, history) and the document list. */
   refreshAll: () => Promise<void>;
-  getDocumentDetail: (
-    fileId: string
-  ) => Promise<MarkdownInvoiceResponse | null>;
+  /** Re-fetch only the document list. */
+  refreshDocuments: () => Promise<void>;
+  /** Full detail for one document; cached once it is in a terminal state. */
+  getDocumentDetail: (id: string) => Promise<DocumentDetail | null>;
+  /** Store a freshly returned detail (e.g. the PATCH response) in the cache. */
+  putDocumentDetail: (detail: DocumentDetail) => void;
+  /** Delete documents on the server and drop them from local state. */
+  deleteDocuments: (ids: string[]) => Promise<void>;
 }
 
 const DashboardDataContext = createContext<DashboardData | null>(null);
 
-/** Safely extract a single item — handles both array and unwrapped responses */
-function unwrap<T>(raw: unknown): T | null {
-  if (raw == null) return null;
-  if (Array.isArray(raw)) return (raw[0] as T) ?? null;
-  if (typeof raw === "object" && "error" in (raw as Record<string, unknown>))
-    return null;
-  return raw as T;
+function messageOf(err: unknown): string {
+  return err instanceof ApiError || err instanceof Error
+    ? err.message
+    : "Something went wrong.";
 }
 
 export function DashboardDataProvider({ children }: { children: ReactNode }) {
   const [analytics, setAnalytics] = useState<UserAnalytics | null>(null);
-  const [creditBalance, setCreditBalance] = useState(0);
+  const [credits, setCredits] = useState<Credits>(EMPTY_CREDITS);
   const [creditHistory, setCreditHistory] = useState<CreditTransaction[]>([]);
   const [documents, setDocuments] = useState<UserDocument[]>([]);
+  const [documentsTotal, setDocumentsTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Cache for document detail pages — keyed by fileId
-  const docDetailCache = useRef<Map<string, MarkdownInvoiceResponse>>(
-    new Map()
+  // Per-document detail cache, only for documents that reached a terminal state.
+  const detailCache = useRef<Map<string, DocumentDetail>>(new Map());
+  // Ids that were in flight at the last list refresh (to notice completions).
+  const prevInFlight = useRef<Set<string>>(new Set());
+  // Guards against overlapping polls.
+  const pollBusy = useRef(false);
+
+  const hasInFlight = useMemo(
+    () => documents.some((d) => isInFlight(d.status)),
+    [documents]
   );
 
-  const fetchAll = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const r = await fetch("/api/user-data");
-      if (!r.ok) return;
-      const data: UserDataResponse = await r.json();
-      if (!data) return;
-
-      if (data.user_analytics) {
-        setAnalytics(data.user_analytics);
+  const applyDocuments = useCallback((items: UserDocument[], total: number) => {
+    // Drop cached details whose document changed (edit, retry, status change).
+    for (const d of items) {
+      const hit = detailCache.current.get(d.id);
+      if (hit && hit.updated_at !== d.updated_at) {
+        detailCache.current.delete(d.id);
       }
-
-      setCreditBalance(data.remaining_credit ?? 0);
-      setCreditHistory(Array.isArray(data.credit_history) ? data.credit_history : []);
-
-      const docs = Array.isArray(data.user_documents) ? data.user_documents : [];
-      setDocuments(docs);
-
-      // Pre-populate document detail cache from the full response
-      docDetailCache.current.clear();
-      for (const doc of docs) {
-        if (doc.file_id && doc.invoice_object) {
-          docDetailCache.current.set(doc.file_id, {
-            file_id: doc.file_id,
-            file_name: doc.file_name,
-            file_size: doc.file_size,
-            num_pages: doc.num_pages,
-            markdown_text: doc.markdown_text,
-            invoice_object: doc.invoice_object,
-          });
-        }
-      }
-    } catch {
-      // silently fail — state stays at defaults
-    } finally {
-      setIsLoading(false);
     }
+    setDocuments(items);
+    setDocumentsTotal(total);
   }, []);
 
+  const loadOverview = useCallback(async () => {
+    const o = await api.overview({
+      documentsLimit: 1,
+      historyLimit: HISTORY_PAGE_SIZE,
+    });
+    setCredits(o.credits);
+    setAnalytics(o.user_analytics);
+    setCreditHistory(o.credit_history);
+  }, []);
+
+  const loadDocuments = useCallback(async () => {
+    const list = await api.listDocuments({ limit: DOCUMENTS_PAGE_SIZE });
+    applyDocuments(list.items, list.total);
+    return list.items;
+  }, [applyDocuments]);
+
+  const refreshAll = useCallback(async () => {
+    try {
+      const [, items] = await Promise.all([loadOverview(), loadDocuments()]);
+      prevInFlight.current = new Set(
+        items.filter((d) => isInFlight(d.status)).map((d) => d.id)
+      );
+      setError(null);
+    } catch (err) {
+      setError(messageOf(err));
+    }
+  }, [loadOverview, loadDocuments]);
+
+  const refreshDocuments = useCallback(async () => {
+    try {
+      await loadDocuments();
+      setError(null);
+    } catch (err) {
+      setError(messageOf(err));
+    }
+  }, [loadDocuments]);
+
+  // Initial load. Entering the dashboard starts from a fresh token so a token
+  // cached for a previous user in this tab can never be reused.
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+    resetApiAuth();
+    let cancelled = false;
+    refreshAll().finally(() => {
+      if (!cancelled) setIsLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshAll]);
 
-  /** Fetch a single document detail — returns from cache if available */
-  const getDocumentDetail = useCallback(
-    async (fileId: string): Promise<MarkdownInvoiceResponse | null> => {
-      // Check cache first
-      const cached = docDetailCache.current.get(fileId);
-      if (cached) return cached;
+  // Poll only while something is in flight.
+  useEffect(() => {
+    if (!hasInFlight) return;
 
+    const tick = async () => {
+      if (pollBusy.current || document.hidden) return;
+      pollBusy.current = true;
       try {
-        const r = await fetch(`/api/documents/${fileId}`);
-        if (!r.ok) return null;
-        const raw = await r.json();
-        const doc = unwrap<MarkdownInvoiceResponse>(raw);
-        if (doc && "invoice_object" in doc) {
-          docDetailCache.current.set(fileId, doc);
-          return doc;
-        }
-        return null;
+        const items = await loadDocuments();
+        const nowInFlight = new Set(
+          items.filter((d) => isInFlight(d.status)).map((d) => d.id)
+        );
+        // Anything that left the in-flight set may have been charged or
+        // rejected: refresh credits, analytics and history.
+        const settled = [...prevInFlight.current].some(
+          (id) => !nowInFlight.has(id)
+        );
+        prevInFlight.current = nowInFlight;
+        if (settled) await loadOverview();
+        setError(null);
+      } catch (err) {
+        setError(messageOf(err));
+      } finally {
+        pollBusy.current = false;
+      }
+    };
+
+    const timer = setInterval(tick, POLL_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [hasInFlight, loadDocuments, loadOverview]);
+
+  const getDocumentDetail = useCallback(
+    async (id: string): Promise<DocumentDetail | null> => {
+      const hit = detailCache.current.get(id);
+      if (hit) return hit;
+      try {
+        const detail = await api.getDocument(id);
+        if (!isInFlight(detail.status)) detailCache.current.set(id, detail);
+        return detail;
       } catch {
         return null;
       }
@@ -119,18 +191,64 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const putDocumentDetail = useCallback(
+    (detail: DocumentDetail) => {
+      if (isInFlight(detail.status)) detailCache.current.delete(detail.id);
+      else detailCache.current.set(detail.id, detail);
+      // The list summary (totals, edited flag, warnings) changed too.
+      void refreshDocuments();
+    },
+    [refreshDocuments]
+  );
+
+  const deleteDocuments = useCallback(
+    async (ids: string[]) => {
+      const res = await api.deleteDocuments(ids);
+      const gone = new Set(res.ids);
+      for (const id of gone) detailCache.current.delete(id);
+      setDocuments((prev) => prev.filter((d) => !gone.has(d.id)));
+      setDocumentsTotal((t) => Math.max(0, t - gone.size));
+      // Held credits and analytics may have changed.
+      await refreshAll();
+    },
+    [refreshAll]
+  );
+
+  const value = useMemo<DashboardData>(
+    () => ({
+      analytics,
+      credits,
+      creditHistory,
+      documents,
+      documentsTotal,
+      isLoading,
+      hasInFlight,
+      error,
+      refreshAll,
+      refreshDocuments,
+      getDocumentDetail,
+      putDocumentDetail,
+      deleteDocuments,
+    }),
+    [
+      analytics,
+      credits,
+      creditHistory,
+      documents,
+      documentsTotal,
+      isLoading,
+      hasInFlight,
+      error,
+      refreshAll,
+      refreshDocuments,
+      getDocumentDetail,
+      putDocumentDetail,
+      deleteDocuments,
+    ]
+  );
+
   return (
-    <DashboardDataContext.Provider
-      value={{
-        analytics,
-        creditBalance,
-        creditHistory,
-        documents,
-        isLoading,
-        refreshAll: fetchAll,
-        getDocumentDetail,
-      }}
-    >
+    <DashboardDataContext.Provider value={value}>
       {children}
     </DashboardDataContext.Provider>
   );

@@ -1,10 +1,8 @@
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
-import { emailOTP } from "better-auth/plugins";
+import { emailOTP, jwt } from "better-auth/plugins";
 import { Pool } from "pg";
 import { sendOtpEmail } from "@/lib/email";
-import { callN8nWebhook, N8N_ENDPOINTS } from "@/lib/n8n";
-import type { SignupCreditsResponse } from "@/lib/types";
 
 /**
  * Postgres pool for Better Auth.
@@ -42,24 +40,12 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     },
   },
-  databaseHooks: {
-    user: {
-      create: {
-        after: async (user) => {
-          // Grant signup credits via the n8n backend, keyed on the new user id.
-          // Replaces the former Clerk `user.created` webhook flow.
-          try {
-            await callN8nWebhook<SignupCreditsResponse>(N8N_ENDPOINTS.CREDITS, {
-              event_type: "signup_credits",
-              user_id: user.id,
-            });
-            console.log("Signup credits assigned for user:", user.id);
-          } catch (error) {
-            console.error("Failed to assign signup credits:", error);
-          }
-        },
-      },
-    },
+  user: {
+    // Account deletion: the Settings screen first calls DELETE /v1/account on the
+    // API (documents, files, credits), then authClient.deleteUser() removes the
+    // Better Auth user. Signup credits are no longer granted here: the API grants
+    // them on a user's first authenticated request.
+    deleteUser: { enabled: true },
   },
   plugins: [
     emailOTP({
@@ -80,6 +66,16 @@ export const auth = betterAuth({
         // mail our users.
         if (type !== "email-verification" && type !== "forget-password") return;
         await sendOtpEmail(email, otp, type);
+      },
+    }),
+    // Issues the short-lived JWT the browser sends to the FastAPI service
+    // (GET /api/auth/token, keys at /api/auth/jwks). With issuer/audience left
+    // unset both default to BETTER_AUTH_URL, which is exactly what the API's
+    // verifier requires. The payload is cut down to `sub` (added by the plugin)
+    // so no name or email travels in the token.
+    jwt({
+      jwt: {
+        definePayload: () => ({}),
       },
     }),
     // nextCookies() must stay last.

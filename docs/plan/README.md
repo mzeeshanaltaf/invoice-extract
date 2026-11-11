@@ -26,14 +26,28 @@ Each phase runs in a fresh session with no memory of the previous one. Context t
 1. Run the phase's verification and record real results (pass/fail, not intent).
 2. Append a dated entry to `HANDOFF.md`: what was built, files/paths created, deviations from the plan and why, env vars/secrets added, commands to run it, open issues, and anything the next phase must know.
 3. Tick the exit criteria in the phase file.
-4. Leave the working tree in a state the next session can build on (commit only when the phase file says so; Phase 4 owns the first push to `main`).
+4. Leave the working tree in a state the next session can build on. Commit and push to the phase's branch only when the user asks (see "Branching" below); never to `main` before Phase 4.
 
 If a session deviates from the plan, it edits the affected phase file so the docs stay the source of truth.
+
+## Branching
+
+Phases depend on each other, so each phase gets its own branch **stacked on the previous one** (cut from its tip, not from `main`). Every branch then contains all earlier work, and `HANDOFF.md` travels with it.
+
+| Phase | Branch | Cut from |
+|---|---|---|
+| 1 | `phase-1-backend` | `main` |
+| 2 | `phase-2-frontend` | `phase-1-backend` |
+| 3 | `phase-3-redesign` | `phase-2-frontend` |
+| 4 | `phase-4-deploy` | `phase-3-redesign` |
+| 5 | `phase-5-cutover` | `main` after the Phase 4 merge |
+
+A session starts by checking out the previous phase's branch and creating its own from it. Branch pushes never deploy (`deploy.yml` triggers on `main` only). In Phase 4, after the user confirms, merge `phase-4-deploy` into `main` (a PR with a merge commit keeps per-phase history; the earlier branches are already contained in it). If `main` receives other commits during the rebuild, merge `main` into the current phase branch now and then so the Phase 4 merge stays small.
 
 ## Rules that apply to every phase
 
 - `user_id` (Better Auth user id, JWT `sub`) stays the single key for all data.
 - Do not touch Better Auth tables, the old `user_documents`, `user_credit_accounts`, `user_credit_transactions` (until Phase 5), or the live n8n-backed site's behavior until Phase 4.
-- Do not commit or push to `main` before Phase 4. `.env*` is gitignored.
+- Do not commit or push to `main` before Phase 4 (the Coolify deploy workflow fires on `main`). Commits and pushes to the phase branches below are fine when the user asks. Do not use the `ship` skill before Phase 4: it commits to `main`. `.env*` is gitignored.
 - No heredocs for writing files; use Write/Edit.
 - Never put secrets in docs or HANDOFF.md; record names of env vars only.
