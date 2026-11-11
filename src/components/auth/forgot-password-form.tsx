@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Receipt, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -106,21 +106,17 @@ export function ForgotPasswordForm() {
       return;
     }
 
-    // resetPassword creates no session — send them through sign-in.
+    // resetPassword creates no session, so send them through sign-in.
     router.push("/sign-in?reset=1");
   }
 
   return (
     <div className="w-full max-w-sm">
-      <div className="mb-8 flex flex-col items-center gap-2 text-center">
-        <Link href="/" className="flex items-center gap-2">
-          <Receipt className="h-6 w-6 text-primary" />
-          <span className="text-lg font-bold tracking-tight">InvoiceExtract</span>
-        </Link>
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight">
+      <div className="mb-8">
+        <h1 className="font-display text-3xl leading-tight font-bold tracking-tight">
           {step === "request" ? "Reset your password" : "Choose a new password"}
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground mt-2 text-sm">
           {step === "request" ? (
             "Enter your email and we'll send you a 6-digit code."
           ) : (
@@ -148,7 +144,7 @@ export function ForgotPasswordForm() {
             />
           </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && (<p role="alert" className="text-sm text-destructive">{error}</p>)}
 
           <Button type="submit" className="w-full" disabled={submitting}>
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -186,7 +182,7 @@ export function ForgotPasswordForm() {
             />
           </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && (<p role="alert" className="text-sm text-destructive">{error}</p>)}
           {notice && <p className="text-sm text-muted-foreground">{notice}</p>}
 
           <Button type="submit" className="w-full" disabled={submitting}>
@@ -213,7 +209,7 @@ export function ForgotPasswordForm() {
         </div>
       )}
 
-      <p className="mt-6 text-center text-sm text-muted-foreground">
+      <p className="mt-6 text-sm text-muted-foreground">
         Remembered it?{" "}
         <Link href="/sign-in" className="font-medium text-foreground hover:underline">
           Back to sign in

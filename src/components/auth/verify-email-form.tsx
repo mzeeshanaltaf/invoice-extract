@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Receipt, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { OtpField } from "@/components/auth/otp-field";
@@ -75,13 +75,9 @@ export function VerifyEmailForm() {
 
   return (
     <div className="w-full max-w-sm">
-      <div className="mb-8 flex flex-col items-center gap-2 text-center">
-        <Link href="/" className="flex items-center gap-2">
-          <Receipt className="h-6 w-6 text-primary" />
-          <span className="text-lg font-bold tracking-tight">InvoiceExtract</span>
-        </Link>
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight">Verify your email</h1>
-        <p className="text-sm text-muted-foreground">
+      <div className="mb-8">
+        <h1 className="font-display text-3xl leading-tight font-bold tracking-tight">Verify your email</h1>
+        <p className="text-muted-foreground mt-2 text-sm">
           We sent a 6-digit code to{" "}
           <span className="font-medium break-all text-foreground">{email}</span>. It expires in 10
           minutes.
@@ -103,8 +99,16 @@ export function VerifyEmailForm() {
           autoFocus
         />
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        {notice && <p className="text-sm text-muted-foreground">{notice}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
+        {notice && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {notice}
+          </p>
+        )}
 
         <Button type="submit" className="w-full" disabled={verifying || otp.length !== 6}>
           {verifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -127,7 +131,7 @@ export function VerifyEmailForm() {
         <EmailDeliveryNote />
       </div>
 
-      <p className="mt-6 text-center text-sm text-muted-foreground">
+      <p className="mt-6 text-sm text-muted-foreground">
         Wrong email?{" "}
         <Link href="/sign-up" className="font-medium text-foreground hover:underline">
           Start over

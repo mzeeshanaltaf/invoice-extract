@@ -1,25 +1,42 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import { Geist } from "next/font/google";
+import { Besley, Geist_Mono, Schibsted_Grotesk } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
+import { StampDefs } from "@/components/brand/stamp";
 import { buildJsonLd, organizationSchema, websiteSchema } from "@/lib/json-ld";
 import "./globals.css";
 
-const geist = Geist({
-  variable: "--font-geist-sans",
+// Display: a Clarendon-style slab for headlines and the wordmark only.
+const besley = Besley({
+  variable: "--font-besley",
   subsets: ["latin"],
+  display: "swap",
+});
+
+// UI and body: a sturdy grotesque with open, even letterforms.
+const schibsted = Schibsted_Grotesk({
+  variable: "--font-schibsted",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+// Figures and JSON only.
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://invoicextract.zeeshanai.cloud"),
   title: {
-    default: "InvoiceExtract — AI-Powered Invoice Data Extraction",
-    template: "%s — InvoiceExtract",
+    default: "InvoicExtract: AI Invoice Data Extraction",
+    template: "%s | InvoicExtract",
   },
   description:
     "Extract structured data from invoices instantly. Upload PDFs or images and get line items, totals, and vendor details powered by AI.",
   openGraph: {
-    siteName: "InvoiceExtract",
+    siteName: "InvoicExtract",
     type: "website",
     locale: "en_US",
     images: [
@@ -27,7 +44,7 @@ export const metadata: Metadata = {
         url: "https://invoicextract.zeeshanai.cloud/opengraph-image",
         width: 1200,
         height: 630,
-        alt: "InvoiceExtract — AI-Powered Invoice Data Extraction",
+        alt: "InvoicExtract: AI Invoice Data Extraction",
       },
     ],
   },
@@ -39,7 +56,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0f172a",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#faf6ee" },
+    { media: "(prefers-color-scheme: dark)", color: "#0d1420" },
+  ],
 };
 
 export default function RootLayout({
@@ -49,7 +69,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geist.variable} font-sans antialiased`}>
+      <body
+        className={`${besley.variable} ${schibsted.variable} ${geistMono.variable} font-sans antialiased`}
+      >
+        <StampDefs />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: buildJsonLd(organizationSchema) }}

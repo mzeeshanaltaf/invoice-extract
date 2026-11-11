@@ -13,6 +13,16 @@ export function formatFileSize(bytes: string | number): string {
   return `${(b / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
+/** "USD 12.50", or "-" when the amount is missing. */
+export function formatMoney(
+  amount: number | null | undefined,
+  currency?: string | null
+): string {
+  if (amount == null || Number.isNaN(Number(amount))) return "-";
+  const n = Number(amount).toFixed(2);
+  return currency ? `${currency} ${n}` : n;
+}
+
 export function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString("en-US", {
     month: "short",

@@ -1,53 +1,68 @@
 "use client";
 
-import { Menu, Coins } from "lucide-react";
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Menu } from "lucide-react";
 import { UserMenu } from "@/components/auth/user-menu";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Sidebar } from "./sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Logo } from "@/components/brand/logo";
 import { useDashboardData } from "@/lib/dashboard-context";
 
-interface TopNavProps {
-  breadcrumb?: string;
+function titleFor(pathname: string) {
+  if (pathname.startsWith("/dashboard/documents/")) return "Document";
+  if (pathname.startsWith("/dashboard/documents")) return "Documents";
+  if (pathname.startsWith("/dashboard/upload")) return "Upload";
+  if (pathname.startsWith("/dashboard/credits")) return "Credits";
+  if (pathname.startsWith("/dashboard/settings")) return "Settings";
+  return "Overview";
 }
 
-function CreditBadge() {
-  const { creditBalance } = useDashboardData();
+/** Compact balance for narrow screens, where the sidebar is closed. */
+function CreditChip() {
+  const { credits, isLoading } = useDashboardData();
+  if (isLoading) return null;
   return (
-    <div className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1 text-sm font-medium text-muted-foreground">
-      <Coins className="h-3.5 w-3.5" />
-      <span>{creditBalance}</span>
-    </div>
+    <Link
+      href="/dashboard/credits"
+      className="border-border bg-card figures hover:bg-accent inline-flex h-9 items-center gap-1.5 rounded-md border px-2.5 text-sm font-medium md:hidden"
+    >
+      {credits.available}{" "}
+      <span className="text-muted-foreground font-sans text-xs">credits</span>
+    </Link>
   );
 }
 
-export function TopNav({ breadcrumb = "Dashboard" }: TopNavProps) {
+export function TopNav() {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+
   return (
-    <header className="flex h-16 items-center justify-between border-b border-border bg-background px-4">
-      {/* Mobile sidebar trigger */}
-      <div className="flex items-center gap-3">
-        <Sheet>
+    <header className="border-border bg-background flex h-14 shrink-0 items-center justify-between gap-3 border-b px-4 md:px-8">
+      <div className="flex min-w-0 items-center gap-2">
+        <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="md:hidden">
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Toggle menu</span>
+            <Button variant="ghost" size="icon" className="-ml-2 md:hidden" aria-label="Open menu">
+              <Menu className="size-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-60 p-0">
-            <Sidebar />
+          <SheetContent side="left" className="w-60 gap-0 p-0">
+            <SheetTitle className="sr-only">Dashboard menu</SheetTitle>
+            <Sidebar onNavigate={() => setOpen(false)} />
           </SheetContent>
         </Sheet>
 
-        {/* Breadcrumb */}
-        <span className="text-sm font-medium text-muted-foreground">
-          {breadcrumb}
+        <Logo href="/dashboard" className="md:hidden" textClassName="hidden min-[400px]:inline" />
+        <span className="text-muted-foreground hidden truncate text-sm font-medium md:inline">
+          {titleFor(pathname)}
         </span>
       </div>
 
-      {/* Right side */}
-      <div className="flex items-center gap-3">
-        <CreditBadge />
+      <div className="flex items-center gap-2">
+        <CreditChip />
         <ThemeToggle />
         <UserMenu />
       </div>

@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic>=2
+pydantic-settings
+sqlalchemy[asyncio]>=2
+asyncpg
+alembic
+openai
+pypdfium2
+Pillow
+PyJWT[crypto]
+openpyxl
+boto3
+httpx
+svix

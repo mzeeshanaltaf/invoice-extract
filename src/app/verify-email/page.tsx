@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { AuthShell } from "@/components/auth/auth-shell";
 import { VerifyEmailForm } from "@/components/auth/verify-email-form";
 
 export const metadata: Metadata = {
@@ -16,12 +17,12 @@ export default async function VerifyEmailPage() {
   if (session) redirect("/dashboard");
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-12">
+    <AuthShell>
       {/* useSearchParams() opts the form into client-side rendering; without
           this boundary the build errors. */}
       <Suspense>
         <VerifyEmailForm />
       </Suspense>
-    </main>
+    </AuthShell>
   );
 }

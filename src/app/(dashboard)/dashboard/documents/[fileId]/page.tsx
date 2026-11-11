@@ -1,55 +1,98 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Check,
+  Download,
+  Loader2,
+  RotateCcw,
+  RotateCw,
+} from "lucide-react";
 import { useDashboardData } from "@/lib/dashboard-context";
-import type { MarkdownInvoiceResponse } from "@/lib/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { api } from "@/lib/api";
+import {
+  isInFlight,
+  type DocumentDetail,
+  type ExportFormat,
+  type InvoiceData,
+} from "@/lib/types";
+import { documentIssueMessage } from "@/lib/error-copy";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatFileSize } from "@/lib/utils";
+import { Stamp } from "@/components/brand/stamp";
+import { formatDate, formatFileSize } from "@/lib/utils";
 import { MarkdownViewer } from "@/components/dashboard/markdown-viewer";
-import Link from "next/link";
-import {
-  ArrowLeft,
-  Building2,
-  User,
-  Mail,
-  Phone,
-  Globe,
-  MapPin,
-  AlertCircle,
-} from "lucide-react";
+import { EmailMark, StatusBadge } from "@/components/dashboard/status-badge";
+import { InvoiceLedger } from "@/components/dashboard/invoice-ledger";
+import { SourcePreview } from "@/components/dashboard/document-preview";
+
+const PROGRESS_STEPS = [
+  { status: "queued", label: "Queued" },
+  { status: "validating", label: "Checking it is an invoice" },
+  { status: "extracting", label: "Reading" },
+] as const;
+
+function ProgressSteps({ status }: { status: string }) {
+  const current = PROGRESS_STEPS.findIndex((s) => s.status === status);
+  return (
+    <ol className="border-border grid border-y-2 sm:grid-cols-3" aria-label="Progress">
+      {PROGRESS_STEPS.map((s, i) => {
+        const state = i < current ? "done" : i === current ? "current" : "next";
+        return (
+          <li
+            key={s.status}
+            aria-current={state === "current" ? "step" : undefined}
+            className={`border-border flex items-center gap-3 px-4 py-4 text-sm ${i > 0 ? "sm:border-l" : ""} ${i > 0 ? "border-t sm:border-t-0" : ""} ${state === "next" ? "text-muted-foreground" : "font-semibold"}`}
+          >
+            <span className="figures flex size-6 shrink-0 items-center justify-center">
+              {state === "done" ? (
+                <Check className="text-success size-4" strokeWidth={3} aria-hidden="true" />
+              ) : state === "current" ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <span aria-hidden="true">{i + 1}</span>
+              )}
+            </span>
+            {s.label}
+            {state === "done" && <span className="sr-only">(done)</span>}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 export default function DocumentDetailPage() {
   const { fileId } = useParams<{ fileId: string }>();
-  const { getDocumentDetail } = useDashboardData();
-  const [doc, setDoc] = useState<MarkdownInvoiceResponse | null>(null);
+  const { getDocumentDetail, putDocumentDetail, refreshAll } = useDashboardData();
+  const [doc, setDoc] = useState<DocumentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  const [draft, setDraft] = useState<InvoiceData | null>(null); // non-null = has local edits
+  const [saving, setSaving] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [mobileView, setMobileView] = useState<"ledger" | "original">("ledger");
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(false);
+    setDraft(null);
 
     getDocumentDetail(fileId).then((result) => {
       if (cancelled) return;
-      if (result) {
-        setDoc(result);
-      } else {
-        setError(true);
-      }
+      if (result) setDoc(result);
+      else setError(true);
       setLoading(false);
     });
 
@@ -58,39 +101,105 @@ export default function DocumentDetailPage() {
     };
   }, [fileId, getDocumentDetail]);
 
+  // While the document is still being processed, poll it directly.
+  const inFlight = doc ? isInFlight(doc.status) : false;
+  useEffect(() => {
+    if (!inFlight) return;
+    let busyPoll = false;
+    const timer = setInterval(async () => {
+      if (busyPoll || document.hidden) return;
+      busyPoll = true;
+      try {
+        const next = await api.getDocument(fileId);
+        setDoc(next);
+        if (!isInFlight(next.status)) {
+          putDocumentDetail(next);
+          void refreshAll(); // credits and analytics changed
+        }
+      } catch {
+        // transient; the next tick retries
+      } finally {
+        busyPoll = false;
+      }
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [inFlight, fileId, putDocumentDetail, refreshAll]);
+
+  const flaggedPaths = useMemo(
+    () => new Set((doc?.warnings ?? []).flatMap((w) => w.fields)),
+    [doc?.warnings]
+  );
+
+  const run = useCallback(async (label: string, fn: () => Promise<void>) => {
+    setBusy(label);
+    setActionError(null);
+    try {
+      await fn();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setBusy(null);
+    }
+  }, []);
+
+  const dirty =
+    draft !== null &&
+    doc?.current_data != null &&
+    JSON.stringify(draft) !== JSON.stringify(doc.current_data);
+
+  const save = async () => {
+    if (!draft || !doc) return;
+    setSaving(true);
+    setActionError(null);
+    try {
+      const updated = await api.editDocument(doc.id, draft);
+      setDoc(updated);
+      putDocumentDetail(updated);
+      setDraft(null);
+      setSavedFlash(true);
+      setTimeout(() => setSavedFlash(false), 2500);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Could not save your changes.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const resetEdits = () =>
+    run("reset", async () => {
+      if (!doc) return;
+      const updated = await api.editDocument(doc.id, null);
+      setDoc(updated);
+      putDocumentDetail(updated);
+      setDraft(null);
+      setConfirmReset(false);
+    });
+
+  const exportAs = (format: ExportFormat) =>
+    run(`export-${format}`, () => api.exportDocument(fileId, format));
+
+  const retry = () =>
+    run("retry", async () => {
+      const next = await api.retryDocument(fileId);
+      setDoc((prev) => (prev ? { ...prev, ...next } : prev));
+      void refreshAll();
+    });
+
+  const back = (
+    <Button asChild variant="ghost" size="sm" className="-ml-3 mb-3 gap-1.5">
+      <Link href="/dashboard/documents">
+        <ArrowLeft /> Documents
+      </Link>
+    </Button>
+  );
+
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <Skeleton className="mb-2 h-8 w-40" />
-          <Skeleton className="h-6 w-64" />
-          <Skeleton className="mt-2 h-4 w-48" />
-        </div>
-        <Skeleton className="h-10 w-80" />
-        <div className="grid gap-4 sm:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i}>
-              <CardContent className="pt-6">
-                <Skeleton className="h-8 w-28" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardContent className="pt-6 space-y-2">
-              <Skeleton className="h-5 w-32" />
-              <Skeleton className="h-4 w-48" />
-              <Skeleton className="h-4 w-40" />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6 space-y-2">
-              <Skeleton className="h-5 w-32" />
-              <Skeleton className="h-4 w-48" />
-              <Skeleton className="h-4 w-40" />
-            </CardContent>
-          </Card>
+      <div aria-hidden="true">
+        <Skeleton className="mb-6 h-9 w-72" />
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+          <Skeleton className="h-96" />
+          <Skeleton className="h-96" />
         </div>
       </div>
     );
@@ -98,468 +207,275 @@ export default function DocumentDetailPage() {
 
   if (error || !doc) {
     return (
-      <div className="space-y-4">
-        <Button asChild variant="ghost" size="sm" className="-ml-2 gap-1">
-          <Link href="/dashboard/documents">
-            <ArrowLeft className="h-4 w-4" />
-            Back to documents
-          </Link>
-        </Button>
-        <Card>
-          <CardContent className="flex flex-col items-center py-14 text-center">
-            <AlertCircle className="mb-4 h-10 w-10 text-muted-foreground/50" />
-            <h2 className="mb-2 text-lg font-semibold">Document not found</h2>
-            <p className="text-sm text-muted-foreground">
-              The document could not be loaded. It may have been removed.
-            </p>
-          </CardContent>
-        </Card>
+      <div>
+        {back}
+        <div className="border-border bg-card max-w-xl rounded-md border p-8">
+          <h1 className="font-display text-2xl font-bold">Document not found.</h1>
+          <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+            It may have been deleted, or the link may be wrong.
+          </p>
+        </div>
       </div>
     );
   }
 
-  const inv = doc.invoice_object;
-  const data = inv.invoice_data;
-  const meta = data.invoice_metadata;
-  const totals = data.totals;
-  const payment = data.payment_details;
-  const bankDetails = payment?.bank_details;
+  const meta = doc.current_data?.invoice_metadata;
 
-  const confidenceColor =
-    inv.confidence === "high"
-      ? "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300"
-      : inv.confidence === "medium"
-        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300"
-        : "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300";
+  const header = (
+    <div className="mb-6">
+      {back}
+      <h1 className="font-display text-2xl leading-tight font-bold tracking-tight break-words md:text-3xl">
+        {doc.file_name}
+      </h1>
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <StatusBadge status={doc.status} verbose />
+        {doc.status === "processed" && doc.confidence && (
+          <Badge variant={doc.confidence === "high" ? "success" : doc.confidence === "medium" ? "warning" : "destructive"}>
+            {doc.confidence} confidence
+          </Badge>
+        )}
+        {doc.edited && <Badge variant="outline">Edited</Badge>}
+        {meta?.invoice_number && (
+          <span className="figures text-muted-foreground text-sm">{meta.invoice_number}</span>
+        )}
+        <EmailMark doc={doc} />
+        {savedFlash && (
+          <span role="status" className="text-success animate-in fade-in inline-flex items-center gap-1 text-sm font-semibold duration-200">
+            <Check className="size-4" strokeWidth={3} aria-hidden="true" /> Saved
+          </span>
+        )}
+      </div>
+    </div>
+  );
 
-  const currency = meta?.currency ?? "USD";
+  /* ── Not (yet) processed ───────────────────────────────────── */
+  if (doc.status !== "processed" || !doc.current_data) {
+    return (
+      <div className="max-w-4xl">
+        {header}
+        {actionError && (
+          <p role="alert" className="text-destructive mb-4 text-sm">
+            {actionError}
+          </p>
+        )}
 
-  function formatAddress(addr?: { street?: string; city?: string; state?: string; postal_code?: string; country?: string }) {
-    if (!addr) return null;
-    return [addr.street, addr.city, addr.state, addr.postal_code, addr.country]
-      .filter(Boolean)
-      .join(", ") || null;
+        {inFlight ? (
+          <section aria-label="Processing">
+            <ProgressSteps status={doc.status} />
+            <p className="text-muted-foreground mt-4 text-sm">
+              This page updates by itself. You can leave it and come back; reading can take a
+              minute or more.
+            </p>
+            <div className="ledger-lines border-border bg-card mt-6 h-64 rounded-md border [--rule-h:2.25rem]" aria-hidden="true" />
+          </section>
+        ) : (
+          <section className="border-border bg-card rounded-md border p-6 sm:p-8">
+            {doc.status === "rejected" && (
+              <Stamp size="lg" rotate={-4} className="mb-5">
+                {doc.error_code === "UNREADABLE" ? "Unreadable" : "Not an invoice"}
+              </Stamp>
+            )}
+            <p className="max-w-xl text-base leading-relaxed">
+              {documentIssueMessage(doc.status, doc.error_code, doc.status_detail)}
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              {doc.status === "failed" && (
+                <Button onClick={retry} disabled={busy !== null} className="gap-2">
+                  {busy === "retry" ? <Loader2 className="animate-spin" /> : <RotateCw />}
+                  Retry
+                </Button>
+              )}
+              <Button asChild variant="outline">
+                <Link href="/dashboard/upload">Upload another</Link>
+              </Button>
+            </div>
+          </section>
+        )}
+      </div>
+    );
   }
 
+  /* ── Processed: source on the left, editable ledger on the right ── */
+  const ledgerValue = draft ?? doc.current_data;
+  const sourceVisible = mobileView === "original";
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="space-y-1">
-          <Button asChild variant="ghost" size="sm" className="mb-2 -ml-2 gap-1">
-            <Link href="/dashboard/documents">
-              <ArrowLeft className="h-4 w-4" />
-              Back to documents
-            </Link>
+    <div>
+      {header}
+
+      {/* Exports and reset */}
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        {(["xlsx", "csv", "json"] as ExportFormat[]).map((f) => (
+          <Button
+            key={f}
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            disabled={busy !== null}
+            onClick={() => exportAs(f)}
+          >
+            {busy === `export-${f}` ? <Loader2 className="animate-spin" /> : <Download />}
+            {f === "xlsx" ? "Excel" : f.toUpperCase()}
           </Button>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {doc.file_name}
-          </h1>
-          <div className="flex items-center gap-2">
-            {inv.is_invoice_related && (
-              <Badge variant="secondary">Invoice</Badge>
-            )}
-            <Badge className={confidenceColor}>
-              {inv.confidence} confidence
-            </Badge>
-            {meta?.invoice_number && (
-              <span className="text-sm text-muted-foreground">
-                #{meta.invoice_number}
-              </span>
-            )}
-          </div>
-        </div>
+        ))}
+        {doc.edited &&
+          (confirmReset ? (
+            <span role="alertdialog" aria-label="Confirm reset" className="border-border bg-card flex flex-wrap items-center gap-2 rounded-md border px-3 py-1.5 text-sm">
+              <span className="font-medium">Discard your edits and restore what was read?</span>
+              <Button size="sm" variant="destructive" disabled={busy !== null} onClick={resetEdits} className="gap-1.5">
+                {busy === "reset" && <Loader2 className="animate-spin" />}
+                Restore
+              </Button>
+              <Button size="sm" variant="outline" disabled={busy === "reset"} onClick={() => setConfirmReset(false)}>
+                Keep my edits
+              </Button>
+            </span>
+          ) : (
+            <Button variant="ghost" size="sm" className="gap-1.5" disabled={busy !== null} onClick={() => setConfirmReset(true)}>
+              <RotateCcw /> Reset to original
+            </Button>
+          ))}
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="data">
-        <TabsList>
-          <TabsTrigger value="data">Invoice Data</TabsTrigger>
-          <TabsTrigger value="markdown">Markdown</TabsTrigger>
-          <TabsTrigger value="details">File Details</TabsTrigger>
-        </TabsList>
+      {actionError && (
+        <p role="alert" className="text-destructive mb-4 text-sm">
+          {actionError}
+        </p>
+      )}
 
-        {/* Tab: Invoice Data */}
-        <TabsContent value="data" className="space-y-6">
-          {/* Invoice header info */}
-          <div className="grid gap-4 sm:grid-cols-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Invoice Number
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-lg font-semibold">
-                  {meta?.invoice_number || "—"}
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Invoice Date
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-lg font-semibold">
-                  {meta?.invoice_date || "—"}
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Due Date
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-lg font-semibold">
-                  {meta?.due_date || "—"}
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Balance Due
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-lg font-semibold">
-                  {totals?.balance_due != null
-                    ? `${currency} ${Number(totals.balance_due).toFixed(2)}`
-                    : "—"}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+      {doc.warnings.length > 0 && (
+        <section
+          aria-label="Figures to check"
+          className="border-warning/30 bg-warning-soft mb-6 rounded-md border px-4 py-3"
+        >
+          <p className="text-warning flex items-center gap-2 text-sm font-bold">
+            <AlertTriangle className="size-4" aria-hidden="true" />
+            {doc.warnings.length} {doc.warnings.length === 1 ? "thing" : "things"} to check
+          </p>
+          <ul className="text-foreground mt-1.5 list-disc space-y-0.5 pl-9 text-sm">
+            {doc.warnings.map((w, i) => (
+              <li key={`${w.code}-${i}`}>{w.message}</li>
+            ))}
+          </ul>
+          <p className="text-muted-foreground mt-2 pl-6 text-xs">
+            The fields concerned are marked &ldquo;Check&rdquo; in the ledger.
+          </p>
+        </section>
+      )}
 
-          {/* Seller & Buyer */}
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* Seller */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-sm">
-                  <Building2 className="h-4 w-4" />
-                  Seller
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <p className="font-semibold">{data.seller?.name ?? "—"}</p>
-                {formatAddress(data.seller?.address) && (
-                  <div className="flex items-start gap-2 text-muted-foreground">
-                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <span>{formatAddress(data.seller?.address)}</span>
-                  </div>
-                )}
-                {data.seller?.contact?.email && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Mail className="h-3.5 w-3.5 shrink-0" />
-                    <span>{data.seller.contact.email}</span>
-                  </div>
-                )}
-                {data.seller?.contact?.phone && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Phone className="h-3.5 w-3.5 shrink-0" />
-                    <span>{data.seller.contact.phone}</span>
-                  </div>
-                )}
-                {data.seller?.contact?.website && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Globe className="h-3.5 w-3.5 shrink-0" />
-                    <span>{data.seller.contact.website}</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+      {/* Phone-width switch between the two panes */}
+      <div className="border-border mb-4 inline-flex rounded-md border p-0.5 lg:hidden" role="group" aria-label="Show">
+        {(
+          [
+            ["ledger", "Ledger"],
+            ["original", "Original"],
+          ] as const
+        ).map(([v, label]) => (
+          <button
+            key={v}
+            type="button"
+            aria-pressed={mobileView === v}
+            onClick={() => setMobileView(v)}
+            className={`min-h-10 rounded-sm px-5 text-sm font-semibold transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+              mobileView === v ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
-            {/* Buyer */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-sm">
-                  <User className="h-4 w-4" />
-                  Buyer
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <p className="font-semibold">{data.buyer?.name ?? "—"}</p>
-                {data.buyer?.company_name && (
-                  <p className="text-muted-foreground">{data.buyer.company_name}</p>
-                )}
-                {formatAddress(data.buyer?.address) && (
-                  <div className="flex items-start gap-2 text-muted-foreground">
-                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <span>{formatAddress(data.buyer?.address)}</span>
-                  </div>
-                )}
-                {data.buyer?.contact?.email && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Mail className="h-3.5 w-3.5 shrink-0" />
-                    <span>{data.buyer.contact.email}</span>
-                  </div>
-                )}
-                {data.buyer?.contact?.phone && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Phone className="h-3.5 w-3.5 shrink-0" />
-                    <span>{data.buyer.contact.phone}</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+        <div className={`${sourceVisible ? "block" : "hidden"} lg:sticky lg:top-0 lg:block`}>
+          <SourcePreview doc={doc} />
+        </div>
 
-          {/* Line items */}
-          {(data.line_items?.length ?? 0) > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Line Items</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-10">#</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead className="text-right">Qty</TableHead>
-                      <TableHead className="text-right">Unit Price</TableHead>
-                      <TableHead className="text-right">Discount</TableHead>
-                      <TableHead className="text-right">Tax</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.line_items!.map((item, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="text-muted-foreground">
-                          {item.line_number ?? i + 1}
-                        </TableCell>
-                        <TableCell>
-                          {item.description}
-                          {item.item_code && (
-                            <span className="ml-1.5 text-xs text-muted-foreground">
-                              ({item.item_code})
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {item.quantity}
-                          {item.unit_of_measure && (
-                            <span className="ml-1 text-xs text-muted-foreground">
-                              {item.unit_of_measure}
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {currency} {Number(item.unit_price ?? 0).toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {currency} {Number(item.discount ?? 0).toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {currency} {Number(item.tax_amount ?? 0).toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {currency} {Number(item.line_total ?? 0).toFixed(2)}
-                        </TableCell>
-                      </TableRow>
+        <div className={`${sourceVisible ? "hidden" : "block"} min-w-0 lg:block`}>
+          <Tabs defaultValue="ledger">
+            <TabsList variant="line" className="mb-2">
+              <TabsTrigger value="ledger">Ledger</TabsTrigger>
+              <TabsTrigger value="transcript">Transcript</TabsTrigger>
+              <TabsTrigger value="file">File</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="ledger" className="space-y-3">
+              <InvoiceLedger value={ledgerValue} onChange={setDraft} flaggedPaths={flaggedPaths} />
+
+              {doc.detected_signals.length > 0 && (
+                <div>
+                  <p className="eyebrow mb-2">Signals it found</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {doc.detected_signals.map((s) => (
+                      <Badge key={s} variant="outline">
+                        {s}
+                      </Badge>
                     ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Financials */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Financial Summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="ml-auto max-w-xs space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span>
-                    {currency} {Number(totals?.subtotal ?? 0).toFixed(2)}
-                  </span>
+                  </div>
                 </div>
-                {(totals?.discount_total ?? 0) > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Discount</span>
-                    <span>
-                      -{currency} {Number(totals!.discount_total).toFixed(2)}
-                    </span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tax</span>
-                  <span>
-                    {currency} {Number(totals?.tax_total ?? 0).toFixed(2)}
-                  </span>
-                </div>
-                {(totals?.shipping_cost ?? 0) > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Shipping</span>
-                    <span>
-                      {currency} {Number(totals!.shipping_cost).toFixed(2)}
-                    </span>
-                  </div>
-                )}
-                {(totals?.other_charges ?? 0) > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Other Charges</span>
-                    <span>
-                      {currency} {Number(totals!.other_charges).toFixed(2)}
-                    </span>
-                  </div>
-                )}
-                <div className="flex justify-between border-t pt-2 font-semibold">
-                  <span>Grand Total</span>
-                  <span>
-                    {currency} {Number(totals?.grand_total ?? 0).toFixed(2)}
-                  </span>
-                </div>
-                {(totals?.amount_paid ?? 0) > 0 && (
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Amount Paid</span>
-                    <span>
-                      -{currency} {Number(totals!.amount_paid).toFixed(2)}
-                    </span>
-                  </div>
-                )}
-                {totals?.balance_due != null && (
-                  <div className="flex justify-between font-semibold text-primary">
-                    <span>Balance Due</span>
-                    <span>
-                      {currency} {Number(totals.balance_due).toFixed(2)}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+              )}
 
-          {/* Payment details */}
-          {payment && (bankDetails?.bank_name || bankDetails?.account_number || bankDetails?.iban || bankDetails?.swift_bic || payment.payment_terms || payment.payment_method) && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Payment Details</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm">
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {payment.payment_terms && (
-                    <div>
-                      <span className="text-muted-foreground">Payment Terms: </span>
-                      <span className="font-medium">{payment.payment_terms}</span>
-                    </div>
-                  )}
-                  {payment.payment_method && (
-                    <div>
-                      <span className="text-muted-foreground">Payment Method: </span>
-                      <span className="font-medium">{payment.payment_method}</span>
-                    </div>
-                  )}
-                  {bankDetails?.bank_name && (
-                    <div>
-                      <span className="text-muted-foreground">Bank Name: </span>
-                      <span className="font-medium">{bankDetails.bank_name}</span>
-                    </div>
-                  )}
-                  {bankDetails?.account_number && (
-                    <div>
-                      <span className="text-muted-foreground">Account Number: </span>
-                      <span className="font-medium">{bankDetails.account_number}</span>
-                    </div>
-                  )}
-                  {bankDetails?.iban && (
-                    <div>
-                      <span className="text-muted-foreground">IBAN: </span>
-                      <span className="font-medium">{bankDetails.iban}</span>
-                    </div>
-                  )}
-                  {bankDetails?.swift_bic && (
-                    <div>
-                      <span className="text-muted-foreground">SWIFT/BIC: </span>
-                      <span className="font-medium">{bankDetails.swift_bic}</span>
-                    </div>
-                  )}
+              {dirty && (
+                <div
+                  role="region"
+                  aria-label="Unsaved changes"
+                  className="paper-sheet border-ring sticky bottom-3 z-20 flex flex-wrap items-center justify-between gap-3 rounded-md border px-4 py-3"
+                >
+                  <p className="text-sm font-semibold">You have unsaved changes.</p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" disabled={saving} onClick={() => setDraft(null)}>
+                      Discard
+                    </Button>
+                    <Button size="sm" disabled={saving} onClick={save} className="gap-1.5">
+                      {saving && <Loader2 className="animate-spin" />}
+                      Save changes
+                    </Button>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              )}
+            </TabsContent>
 
-          {/* Notes */}
-          {data.notes && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Notes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">{data.notes}</p>
-              </CardContent>
-            </Card>
-          )}
+            <TabsContent value="transcript">
+              <MarkdownViewer content={doc.markdown_text ?? ""} />
+            </TabsContent>
 
-          {/* Detected signals */}
-          {(inv.detected_signals?.length ?? 0) > 0 && (
-            <div>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Detected Signals
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {inv.detected_signals!.map((signal) => (
-                  <Badge key={signal} variant="outline" className="text-xs">
-                    {signal}
-                  </Badge>
+            <TabsContent value="file">
+              <dl className="border-border bg-card divide-border divide-y rounded-md border">
+                {(
+                  [
+                    ["File name", doc.file_name],
+                    ["Size", formatFileSize(doc.file_size)],
+                    ["Pages", String(doc.num_pages)],
+                    [
+                      "Source",
+                      doc.source === "email"
+                        ? `Email${doc.source_detail?.sender ? ` from ${doc.source_detail.sender}` : ""}`
+                        : "Upload",
+                    ],
+                    ["Added", formatDate(doc.created_at)],
+                    [
+                      "Original file",
+                      doc.file_available
+                        ? "Stored"
+                        : doc.file_deleted_at
+                          ? `Removed ${formatDate(doc.file_deleted_at)}`
+                          : "Not stored",
+                    ],
+                  ] as const
+                ).map(([label, value]) => (
+                  <div key={label} className="grid gap-1 px-4 py-3 text-sm sm:grid-cols-[9rem_minmax(0,1fr)]">
+                    <dt className="text-muted-foreground">{label}</dt>
+                    <dd className="font-medium break-words">{value}</dd>
+                  </div>
                 ))}
-              </div>
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Tab: Markdown */}
-        <TabsContent value="markdown">
-          <MarkdownViewer content={doc.markdown_text} />
-        </TabsContent>
-
-        {/* Tab: File Details */}
-        <TabsContent value="details">
-          <Card>
-            <CardContent className="pt-6">
-              <dl className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    File Name
-                  </dt>
-                  <dd className="mt-1 text-sm font-medium">{doc.file_name}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    File Size
-                  </dt>
-                  <dd className="mt-1 text-sm font-medium">
-                    {formatFileSize(doc.file_size)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Pages
-                  </dt>
-                  <dd className="mt-1 text-sm font-medium">{doc.num_pages}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    File ID
-                  </dt>
-                  <dd className="mt-1 break-all font-mono text-xs text-muted-foreground">
-                    {doc.file_id}
-                  </dd>
+                <div className="grid gap-1 px-4 py-3 text-sm sm:grid-cols-[9rem_minmax(0,1fr)]">
+                  <dt className="text-muted-foreground">Document ID</dt>
+                  <dd className="figures text-muted-foreground text-xs break-all">{doc.id}</dd>
                 </div>
               </dl>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
     </div>
   );
 }

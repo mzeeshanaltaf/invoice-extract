@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { AlertCircle } from "lucide-react";
 
 export default function DashboardError({
   error,
@@ -11,13 +10,14 @@ export default function DashboardError({
   reset: () => void;
 }) {
   return (
-    <div className="flex flex-col items-center py-20 text-center">
-      <AlertCircle className="mb-4 h-10 w-10 text-muted-foreground/50" />
-      <h2 className="mb-2 text-lg font-semibold">Something went wrong</h2>
-      <p className="mb-6 max-w-sm text-sm text-muted-foreground">
+    <div className="border-border bg-card max-w-xl rounded-md border p-8">
+      <h2 className="font-display text-2xl font-bold">Something went wrong.</h2>
+      <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
         {error.message || "An unexpected error occurred. Please try again."}
       </p>
-      <Button onClick={reset}>Try again</Button>
+      <Button onClick={reset} className="mt-5">
+        Try again
+      </Button>
     </div>
   );
 }

@@ -1,0 +1,10 @@
+.venv
+.devkeys
+.storage
+.env
+.env.*
+__pycache__
+.pytest_cache
+*.log
+tests
+scripts

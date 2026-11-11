@@ -7,7 +7,7 @@ export default function DocumentsLoading() {
         <Skeleton className="h-8 w-40" />
         <Skeleton className="mt-2 h-4 w-64" />
       </div>
-      <Skeleton className="h-80 rounded-xl" />
+      <Skeleton className="h-80" />
     </div>
   );
 }

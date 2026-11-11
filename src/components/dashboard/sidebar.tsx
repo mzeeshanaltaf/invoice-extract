@@ -2,17 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
 import {
-  Receipt,
-  LayoutDashboard,
-  Upload,
-  FileStack,
   CreditCard,
-  Settings,
+  FileStack,
   HelpCircle,
+  LayoutDashboard,
+  Settings,
+  Upload,
 } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
+import { Logo } from "@/components/brand/logo";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useDashboardData } from "@/lib/dashboard-context";
 
 const navItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -22,51 +23,79 @@ const navItems = [
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
-export function Sidebar() {
+/** Always-visible balance: available credits, with what in-flight documents hold. */
+function CreditBalance({ onNavigate }: { onNavigate?: () => void }) {
+  const { credits, isLoading } = useDashboardData();
+  return (
+    <Link
+      href="/dashboard/credits"
+      onClick={onNavigate}
+      className="border-sidebar-border bg-card hover:bg-sidebar-accent block rounded-md border p-3 transition-colors duration-150"
+    >
+      <p className="eyebrow">Credits available</p>
+      {isLoading ? (
+        <Skeleton className="mt-2 h-8 w-12" />
+      ) : (
+        <p className="figures mt-1 text-3xl leading-tight font-medium">{credits.available}</p>
+      )}
+      <p className="text-muted-foreground mt-1 text-xs">
+        {isLoading
+          ? " "
+          : credits.held > 0
+            ? `${credits.held} held by documents in progress`
+            : credits.available === 0
+              ? "None left. Uploads are paused."
+              : "1 credit reads 1 page"}
+      </p>
+    </Link>
+  );
+}
+
+export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
 
   return (
-    <aside className="flex h-full w-60 flex-col border-r border-border bg-background">
-      {/* Logo */}
-      <div className="flex h-16 items-center gap-2 px-4">
-        <Receipt className="h-6 w-6 text-primary" />
-        <span className="text-base font-bold">InvoiceExtract</span>
+    <aside className="border-sidebar-border bg-sidebar text-sidebar-foreground flex h-full w-60 flex-col border-r">
+      <div className="flex h-14 items-center px-4">
+        <Logo href="/dashboard" />
       </div>
 
-      <Separator />
-
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
+      <nav aria-label="Dashboard" className="flex-1 overflow-y-auto px-3 py-3">
         <ul className="space-y-1">
-          {navItems.map(({ href, label, icon: Icon }) => (
-            <li key={href}>
-              <Link
-                href={href}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  pathname === href
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {label}
-              </Link>
-            </li>
-          ))}
+          {navItems.map(({ href, label, icon: Icon }) => {
+            const active =
+              href === "/dashboard" ? pathname === href : pathname.startsWith(href);
+            return (
+              <li key={href}>
+                <Link
+                  href={href}
+                  onClick={onNavigate}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "flex min-h-10 items-center gap-3 rounded-md border px-3 text-sm font-medium transition-colors duration-150",
+                    active
+                      ? "border-sidebar-border bg-sidebar-accent text-foreground font-semibold"
+                      : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground border-transparent"
+                  )}
+                >
+                  <Icon className={cn("size-4", active && "text-primary")} aria-hidden="true" />
+                  {label}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       </nav>
 
-      <Separator />
-
-      {/* Help */}
-      <div className="px-3 py-4">
+      <div className="space-y-3 p-3">
+        <CreditBalance onNavigate={onNavigate} />
         <Link
-          href="#"
-          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          href="/contact"
+          onClick={onNavigate}
+          className="text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground flex min-h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors duration-150"
         >
-          <HelpCircle className="h-4 w-4" />
-          Help & Support
+          <HelpCircle className="size-4" aria-hidden="true" />
+          Help and support
         </Link>
       </div>
     </aside>

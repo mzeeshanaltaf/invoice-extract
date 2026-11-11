@@ -2,14 +2,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function CreditsLoading() {
   return (
-    <div className="space-y-6">
-      <div>
+    <div aria-hidden="true" className="space-y-8">
+      <div className="space-y-3">
         <Skeleton className="h-8 w-32" />
-        <Skeleton className="mt-2 h-4 w-64" />
+        <Skeleton className="h-4 w-80" />
       </div>
-      <Skeleton className="h-36 rounded-xl" />
-      <Skeleton className="h-8 w-48" />
-      <Skeleton className="h-64 rounded-xl" />
+      <Skeleton className="h-28 w-full" />
+      <div className="space-y-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-10 w-full" />
+        ))}
+      </div>
     </div>
   );
 }

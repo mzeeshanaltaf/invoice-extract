@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Receipt, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,23 +98,19 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
 
   return (
     <div className="w-full max-w-sm">
-      <div className="mb-8 flex flex-col items-center gap-2 text-center">
-        <Link href="/" className="flex items-center gap-2">
-          <Receipt className="h-6 w-6 text-primary" />
-          <span className="text-lg font-bold tracking-tight">InvoiceExtract</span>
-        </Link>
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight">
+      <div className="mb-8">
+        <h1 className="font-display text-3xl leading-tight font-bold tracking-tight">
           {isSignUp ? "Create your account" : "Welcome back"}
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground mt-2 text-sm">
           {isSignUp
-            ? "Start extracting invoice data — 5 free credits on signup."
+            ? "5 free credits on signup. No card needed."
             : "Sign in to continue to your dashboard."}
         </p>
       </div>
 
       {justReset && (
-        <p className="mb-5 rounded-md border border-border bg-muted/40 px-3 py-2.5 text-center text-sm text-muted-foreground">
+        <p role="status" className="mb-5 rounded-md border border-success/30 bg-success-soft px-3 py-2.5 text-sm text-success">
           Password updated. Sign in with your new password.
         </p>
       )}
@@ -186,7 +182,11 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           />
         </div>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
 
         <Button type="submit" className="w-full" disabled={submitting || googleLoading}>
           {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -194,7 +194,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-muted-foreground">
+      <p className="mt-6 text-sm text-muted-foreground">
         {isSignUp ? (
           <>
             Already have an account?{" "}

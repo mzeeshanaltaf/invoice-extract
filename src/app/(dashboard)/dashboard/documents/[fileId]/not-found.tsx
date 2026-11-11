@@ -1,17 +1,14 @@
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { FileX } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function DocumentNotFound() {
   return (
-    <div className="flex flex-col items-center py-20 text-center">
-      <FileX className="mb-4 h-10 w-10 text-muted-foreground/50" />
-      <h2 className="mb-2 text-lg font-semibold">Document not found</h2>
-      <p className="mb-6 max-w-sm text-sm text-muted-foreground">
-        The document you&apos;re looking for doesn&apos;t exist or may have been
-        removed.
+    <div className="border-border bg-card max-w-xl rounded-md border p-8">
+      <h2 className="font-display text-2xl font-bold">Document not found.</h2>
+      <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+        It does not exist, or it was deleted.
       </p>
-      <Button asChild variant="outline">
+      <Button asChild variant="outline" className="mt-5">
         <Link href="/dashboard/documents">Back to documents</Link>
       </Button>
     </div>
