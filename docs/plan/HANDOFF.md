@@ -9,7 +9,7 @@ Each session appends one entry at the end of its phase. Newest at the bottom. Ne
 | 1 Backend | done | 2026-11-11 | 119 tests pass (+1 S3 test, run separately); live OpenAI check ALL PASS on flex tier |
 | 2 Front end integration | done | 2026-11-11 | `npm run build` green; full local walkthrough passed against the Phase 1 backend; contact form stays on n8n (user decision) |
 | 3 Redesign | done | 2026-11-11 | `npm run build` green; 96 screenshots; axe 0 violations (16 screens x 2 themes x 1440/375); Phase 2 flows re-walked |
-| 4 Deploy | done (Resend inbound not enabled) | 2026-11-11 | API app, MinIO, DNS, jwks migration live; merged to `main` (PR #4); live end-to-end walkthrough passed; inbound blocked by a send-only Resend key |
+| 4 Deploy | done | 2026-11-11 | API app, MinIO, DNS, jwks migration, Resend inbound all live; merged to `main` (PR #4); upload and email-in walkthroughs passed on production |
 | 5 Cutover | not started | | |
 
 ## Entry template (copy for each phase)
@@ -221,7 +221,7 @@ Backend defaults (`BETTER_AUTH_URL`, `ALLOWED_ORIGINS` = `http://localhost:3000`
 - Keep to DESIGN.md for any later UI: vermilion only for the single primary action and stamps, green only for extracted/verified, `.figures` for numbers, no em dashes, no `outline-none` on controls, errors inline (no toasts).
 
 ### Phase 4: Deploy  (2026-11-11)
-**Result:** done, except Resend inbound (email-in), which is not enabled: the only Resend key available (`RESEND_API_KEY` in `.env.local` and on the web app) is restricted to sending (`restricted_api_key`, 401 on `/domains` and `/webhooks`). The rest of the build does not depend on it. Merged to `main` as PR #4 (merge commit `42d5022`); both apps deployed that commit.
+**Result:** done. Merged to `main` as PR #4 (merge commit `42d5022`); both apps deployed that commit. Resend inbound was first skipped (the original `RESEND_API_KEY` is send-only: 401 `restricted_api_key` on `/domains`, `/webhooks` and `/emails/receiving`) and then completed later the same day with a full-access key supplied by the owner (see "Resend inbound" below).
 
 **Built / done:**
 - Coolify app `invoicextract-api`, uuid `mgqho7lywpzcemeetsquuzww`, in project InvoiceExtract (`l66wvnnarhp24do4gmsq5ew0`), repo `mzeeshanaltaf/invoice-extract`, branch `main`, Dockerfile build, base directory `/backend`, port 8000, Coolify healthcheck `/healthz`, domain `https://api.invoicextract.zeeshanai.cloud` (Let's Encrypt issued). Migrations run on container start (`0001` applied to production).
@@ -239,7 +239,14 @@ Backend defaults (`BETTER_AUTH_URL`, `ALLOWED_ORIGINS` = `http://localhost:3000`
 4. The API app was first deployed from branch `phase-4-deploy` to test before the merge, then switched to `main`.
 5. Untracked reference files (`n8n_workflows/*.json`, `docs/n8n_webhooks.txt`, SEO plan, shimmer notes) were **deliberately not committed**: the n8n exports contain a hardcoded webhook `api-key` and the repo is public. The staged-as-deleted `n8n_workflows/Webhooks.txt` is also untouched. Decide in Phase 5 whether to keep any of them (scrub keys first, and consider rotating the n8n webhook key).
 
-**Env vars (names only).** API app, all runtime: `ENVIRONMENT=production`, `DATABASE_URL` (host `10.0.0.1:5432`), `OPENAI_API_KEY`, `BETTER_AUTH_URL`, `ALLOWED_ORIGINS`, `ADMIN_API_KEY`, `STORAGE_DRIVER=s3`, `S3_ENDPOINT` (internal MinIO URL), `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`. **Not set** (inbound pending): `INBOUND_EMAIL_DOMAIN`, `RESEND_WEBHOOK_SECRET`. Web app: as before plus `NEXT_PUBLIC_API_URL` (build-time). GitHub repo secrets: `COOLIFY_API_TOKEN`, `COOLIFY_APP_UUID`, `COOLIFY_API_APP_UUID`.
+**Resend inbound (added later 2026-11-11):**
+- Resend domain `in.invoicextract.zeeshanai.cloud` (id `107ff59f-e05f-4aa5-95c5-59d422955bcf`, us-east-1, receiving enabled, sending disabled), verified. Hostinger DNS records added, subdomain only: `MX in.invoicextract -> 10 receive.forge.rmta.net.` and `TXT resend._domainkey.in.invoicextract` (DKIM). Root-domain mail records untouched.
+- Webhook `9caff786-7461-4171-a884-bf36a72ab593`, event `email.received`, endpoint `https://api.invoicextract.zeeshanai.cloud/v1/inbound/email`. Signing secret stored only as `RESEND_WEBHOOK_SECRET` on the API app.
+- The API app's `RESEND_API_KEY` was **replaced with a full-access key**: the API must read received emails and attachments, which a send-only key cannot do. The web app keeps its send-only key. `.env.local` holds the full-access key as `RESEND_FULL_ACCESS`; suggested Resend name for it: `invoicextract-api-prod` (the account lists it as `InvoicExtract-Email-In`).
+- Test, real production path: throwaway account on `delivered+...@resend.dev`, email-in enabled in Settings, one email with the sample invoice PDF sent to its private address; the webhook was accepted, the document appeared with `source: email`, sender and subject, processed (`INV-2026-1187`, GBP 572.52) in 68 s, 2 credits used (5 -> 3); account deleted afterwards. A text-only probe to the same domain was also received and answered 200.
+- One earlier test email (with PDF) stayed at "sent" in Resend and was never delivered or received (cause unknown, Resend side; the retest and the probe both worked). The first test run also left orphan backend rows because its token expired (15 min) before cleanup; I removed them by user id. A different, unrelated signup (`sweep+...@example.test`, not mine) also appeared in Resend's send log at the time.
+
+**Env vars (names only).** API app, all runtime: `ENVIRONMENT=production`, `DATABASE_URL` (host `10.0.0.1:5432`), `OPENAI_API_KEY`, `BETTER_AUTH_URL`, `ALLOWED_ORIGINS`, `ADMIN_API_KEY`, `STORAGE_DRIVER=s3`, `S3_ENDPOINT` (internal MinIO URL), `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`. Inbound: `INBOUND_EMAIL_DOMAIN=in.invoicextract.zeeshanai.cloud`, `RESEND_WEBHOOK_SECRET` (and `RESEND_API_KEY` is the full-access key). Web app: as before plus `NEXT_PUBLIC_API_URL` (build-time). GitHub repo secrets: `COOLIFY_API_TOKEN`, `COOLIFY_APP_UUID`, `COOLIFY_API_APP_UUID`.
 
 **Verification results (production, real runs):**
 - `/healthz` and `/readyz` 200 on the API domain; Let's Encrypt cert; Coolify shows `running:healthy` (API); web home 200, `/api/auth/jwks` 200. Deploy logs clean.
@@ -248,10 +255,10 @@ Backend defaults (`BETTER_AUTH_URL`, `ALLOWED_ORIGINS` = `http://localhost:3000`
 - Contact form: one POST to `/api/contact` returned `{"success":true}` (n8n webhook, name "Deploy check"); the owner should see it arrive. Not verified from my side.
 - MinIO: `docker port` shows no published ports; `http://76.13.7.106:9000` from the public internet times out. DB host is `10.0.0.1`.
 - VPS after builds: disk 60% of 96G (was 49%), cron active, weekly prune entry present.
-- **Not exercised:** the browser UI on production (only the HTTP flow above), Google sign-in, email-in, a real (non-test) contact message read by a person.
+- **Not exercised:** the browser UI on production (only the HTTP flow above), Google sign-in, the summary reply email (sent to a `resend.dev` test address, delivery not inspected), a real contact message read by a person.
 
 **Open issues / risks:**
-- **Resend inbound:** needs a full-access Resend API key (or the user doing it in the dashboard): enable receiving for `in.invoicextract.zeeshanai.cloud`, add the MX record Resend gives for that subdomain, create an `email.received` webhook to `https://api.invoicextract.zeeshanai.cloud/v1/inbound/email`, then set `INBOUND_EMAIL_DOMAIN` and `RESEND_WEBHOOK_SECRET` on the API app and redeploy. Until then Settings shows "Email-in is not available yet", but the landing FAQ already promises email-in; edit the copy or finish inbound before announcing.
+- **Resend inbound:** live. Remaining: real-world check by forwarding an actual invoice from a normal mailbox; confirm the summary reply reaches the owner; rename the Resend key as suggested; the full-access key now lives in Coolify (API app) and `.env.local`, so rotate it if either leaks.
 - The weekly prune now has ~2 more images to keep; disk grew 11 points from this phase's builds.
 - Single-process API: a redeploy briefly overlaps old and new containers (data-safe per Phase 1 notes).
 - Docs-only commits for this handoff are on branch `phase-4-deploy` (pushed), **not on `main`**, to avoid triggering a redeploy. Cut `phase-5-cutover` from `phase-4-deploy` (or merge it first).

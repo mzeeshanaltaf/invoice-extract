@@ -8,7 +8,7 @@
 ## Steps
 
 1. On the VPS, check `df -h /`, `cat /var/log/docker-cleanup.log`, `crontab -l`, `systemctl is-active cron` first (global notes).
-> **Deviations recorded (2026-11-11):** the API image installs `curl` (Coolify healthcheck needs it); the Coolify deploy API needs POST; the app uses a dedicated MinIO key limited to the bucket; Resend inbound (3b) was skipped because the key is send-only.
+> **Deviations recorded (2026-11-11):** the API image installs `curl` (Coolify healthcheck needs it); the Coolify deploy API needs POST; the app uses a dedicated MinIO key limited to the bucket; Resend inbound (3b) first stopped on a send-only key, then done with a full-access key, and the API now runs on that key.
 
 2. Create Coolify app `invoicextract-api` in the existing InvoiceExtract project: same repo, base directory `/backend`, Dockerfile build, port 8000, health check `/healthz`, domain `https://api.invoicextract.zeeshanai.cloud`.
 3. DNS: add an A record `api.invoicextract` to `76.13.7.106` (Hostinger DNS).
@@ -31,9 +31,9 @@
 
 ## Exit criteria
 
-- [x] API app, DNS, MinIO live and verified. Resend inbound NOT enabled (the available key is send-only); see HANDOFF.
+- [x] API app, DNS, MinIO and Resend inbound live and verified (inbound completed once a full-access key was supplied); see HANDOFF.
 - [x] Both apps auto-deploy from a push to `main` via the updated workflow (PR #4 merge deployed both at `42d5022`).
-- [x] Production smoke tests above pass (email-in skipped, see above); results recorded in HANDOFF.
+- [x] Production smoke tests above pass (email-in verified with a real inbound email); results recorded in HANDOFF.
 
 ## Handoff (do this last)
 
