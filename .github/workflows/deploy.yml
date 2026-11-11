@@ -47,7 +47,7 @@ jobs:
           trigger() {
             name="$1"; uuid="$2"
             for i in 1 2 3 4 5; do
-              code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 30 \
+              code=$(curl -sS -X POST -o /dev/null -w "%{http_code}" --max-time 30 \
                 "${COOLIFY_URL}/api/v1/deploy?uuid=${uuid}&force=false" \
                 -H "Authorization: Bearer ${COOLIFY_API_TOKEN}" || echo "000")
               echo "[$name] attempt $i -> HTTP $code"
