@@ -36,6 +36,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# n8n workflow exports: local reference only. They contain a hardcoded webhook
+# api-key and the repo is public, so never commit them.
+/n8n_workflows/*.json
+
 # python (backend): virtualenv, caches, local dev artefacts
 .venv/
 __pycache__/

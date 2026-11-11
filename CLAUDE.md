@@ -4,52 +4,98 @@ Guidance for working in this repo. Read this before making changes.
 
 ## What this is
 
-InvoicExtract — a Next.js 16 (App Router, React 19, TypeScript, `src/` layout)
-app for AI invoice data extraction. Tailwind v4 + shadcn/ui (new-york). Live at
-https://invoicextract.zeeshanai.cloud.
+InvoicExtract — AI invoice data extraction. Two deployables in one repo:
+
+- **Web** (repo root): Next.js 16 (App Router, React 19, TypeScript, `src/` layout),
+  Tailwind v4 + shadcn/ui (new-york). Marketing, auth, dashboard UI, contact form.
+  Live at https://invoicextract.zeeshanai.cloud.
+- **API** ([backend/](backend/)): FastAPI service (Python 3.12, Postgres, MinIO,
+  OpenAI). Live at https://api.invoicextract.zeeshanai.cloud. See
+  [backend/README.md](backend/README.md) for its internals.
 
 ## Commands
 
 ```bash
+# Web (repo root)
 npm run dev     # dev server (http://localhost:3000)
-npm run build   # production build (Turbopack)
+npm run build   # production build (Turbopack); the only automated check for the web app
 npm run start   # serve the production build
-npx @better-auth/cli@latest migrate   # create/alter Better Auth tables
+npx @better-auth/cli@latest migrate   # create/alter Better Auth tables (see the DATABASE_URL gotcha below)
+
+# API (from backend/, venv at backend/.venv)
+.venv/Scripts/python -m alembic upgrade head                 # migrate (the Docker entrypoint does this on start)
+.venv/Scripts/python -m uvicorn app.main:app --port 8000     # run (reads backend/.env)
+.venv/Scripts/python -m pytest                               # needs the dev Postgres from backend/README.md
+.venv/Scripts/python scripts/mint_token.py --user test_user_1  # local test JWT (needs JWT_DEV_PUBLIC_KEY_FILE on the server)
 ```
 
-There is no test suite. Verify changes with `npm run build` plus manual checks.
+The web app has no test suite; verify with `npm run build` plus manual checks.
+The API has a pytest suite (OpenAI and Resend mocked, real Postgres).
 
-## Architecture — the two things to internalize
+## Architecture — the three things to internalize
 
-1. **n8n is the backend.** This app has almost no business logic of its own. All
-   OCR (Mistral AI), credits, documents, and analytics live in n8n workflows,
-   called over authenticated webhooks. The client → an internal `/api/*` route →
-   `src/lib/n8n.ts` (`callN8nWebhook` / `callN8nWebhookFormData`, `x-api-key`
-   header) → n8n. Endpoint UUIDs are in `N8N_ENDPOINTS` in `src/lib/n8n.ts`.
+1. **The browser talks to two servers.** Next.js owns auth only (Better Auth
+   session cookie). All data goes browser → FastAPI directly with
+   `Authorization: Bearer <JWT>`. The token comes from the Better Auth `jwt()`
+   plugin (`GET /api/auth/token` with the session cookie; public keys at
+   `/api/auth/jwks`). `src/lib/api.ts` is the only client: it caches the token,
+   refreshes it when under 60 s remain, and on a 401 refetches once and retries
+   once. There are **no** Next.js proxy routes for data (only `/api/auth/*` and
+   `/api/contact`).
 
-2. **The user id is the single key for all backend data.** Every `/api/*` data
-   route resolves the signed-in user's id via `getUserId()`
-   (`src/lib/session.ts`) and forwards it to n8n as `user_id`. n8n keys credits,
-   documents, and analytics on this value. **Never** change how the id is derived
-   or forwarded without understanding this — it would orphan every user's data.
+2. **The user id is the single key for all backend data.** The JWT `sub` is the
+   Better Auth user id; the API verifies the signature against the JWKS and
+   requires `exp`, `sub`, `iss` and `aud` (both = `BETTER_AUTH_URL`). Every
+   table is keyed on that `sub` as `user_id`. **Never** change how the id is
+   derived without understanding this: it would orphan every user's data. Keep
+   `issuer`/`audience` unset (or equal to the base URL) in the `jwt()` plugin, or
+   set `JWT_ISSUER`/`JWT_AUDIENCE` on the API to match.
+
+3. **Uploads are asynchronous.** `POST /v1/documents` validates and queues; an
+   in-process worker (single uvicorn worker by design) renders PDF pages to
+   images, gates with the OpenAI Decisions API (non-invoices are rejected and
+   cost nothing), extracts with `gpt-6-luna` on the flex tier, runs sanity
+   checks, then marks `processed` and charges credits in one transaction.
+   Statuses: `queued`, `validating`, `extracting`, `processed`, `rejected`,
+   `failed`. The front end polls while anything is in flight. Credits are
+   charged only on success (1 per page); in-flight documents reserve ("hold")
+   credits, so the UI shows `available`, not the raw balance.
+
+Other API features: MinIO/S3 object storage for source files (no bytes in
+Postgres), per-user retention setting (hourly sweep deletes expired source
+files, extracted data stays), email-in (Resend inbound webhook
+`/v1/inbound/email`, signature verified, one private address per account),
+editable extracted fields, CSV/XLSX/JSON export, account deletion. Limits
+(10 MB, 10 pages, 1 credit per page, 5 signup credits) are API config, exposed at
+`GET /v1/meta/limits`. The first authenticated call creates the credit account
+with the signup bonus. Error envelope everywhere:
+`{"error": {"code", "message", ...}}`; copy for codes lives in
+`src/lib/error-copy.ts`.
 
 ## Auth (Better Auth) — replaced Clerk
 
 - Server instance: `src/lib/auth.ts`. Postgres via `pg.Pool` with
   `options: "-c search_path=invoice_extract"` so all tables (user/session/
-  account/verification) resolve to the `invoice_extract` schema. Client:
+  account/verification/jwks) resolve to the `invoice_extract` schema. Client:
   `src/lib/auth-client.ts`. Route handler: `src/app/api/auth/[...all]/route.ts`.
 - Providers: email/password + Google OAuth. Pages: `/sign-in`, `/sign-up`
-  (`src/components/auth/auth-form.tsx`). Account menu / sign-out:
-  `src/components/auth/user-menu.tsx`.
+  (`src/components/auth/auth-form.tsx`, wrapped by `auth-shell.tsx`). Account menu
+  / sign-out: `src/components/auth/user-menu.tsx`.
 - Protected routes: `src/middleware.ts` checks the Better Auth session cookie
-  (`getSessionCookie`) and redirects `/dashboard(.*)` to `/sign-in`.
+  (`getSessionCookie`) and redirects `/dashboard(.*)` to `/sign-in`. The `jwt()`
+  routes need no middleware change.
 - Server components read the session with
   `auth.api.getSession({ headers: await headers() })`; client components use
   `useSession()` from `auth-client`.
-- **Signup credits**: granted by a `databaseHooks.user.create.after` hook in
-  `auth.ts` that calls the n8n CREDITS endpoint (`event_type: "signup_credits"`).
-  This replaced the old Clerk `user.created` webhook — do not re-add a webhook.
+- **Do not add `jwtClient()`** to the auth client: it breaks type-checking on
+  better-auth 1.6.x (and the `emailOtp` typings with it). `api.ts` uses
+  `authClient.$fetch("/token")`.
+- **Signup credits** are granted by the API on a user's first authenticated
+  request. There is no hook or webhook in the web app for this; do not re-add one.
+- **Account deletion** is two steps, in order: `DELETE /v1/account` (API data and
+  stored files), then `authClient.deleteUser()` (Better Auth user; needs a session
+  younger than 24 h). Deleting only the API data leaves a valid JWT that would
+  recreate an empty account on the next call.
 - Env: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GOOGLE_CLIENT_ID/SECRET`,
   `DATABASE_URL`. Google redirect URI: `<BETTER_AUTH_URL>/api/auth/callback/google`.
 
@@ -82,6 +128,10 @@ There is no test suite. Verify changes with `npm run build` plus manual checks.
 - Page `src/app/(marketing)/contact/page.tsx`, form
   `src/components/contact/contact-form.tsx`, route `src/app/api/contact/route.ts`,
   limiter `src/lib/rate-limit.ts`.
+- **It still posts to an n8n webhook** (`N8N_CONTACT_WEBHOOK_URL`, `x-api-key` =
+  `N8N_API_KEY`, payload `source: "invoiceextract"`). That is the only remaining
+  use of n8n; keep that webhook active in n8n. Do not rename the `source` value
+  without checking the n8n workflow.
 - Spam protection: a non-semantic **honeypot** field named `hp_field` (never
   rename it — a semantic name would trigger browser/Google autofill and flag real
   users) + Upstash per-IP rate limiting (fails open if Upstash env is missing).
@@ -102,25 +152,73 @@ Umami (self-hosted, cookieless). Mounted in `src/app/layout.tsx` via
 - **PDF preview (`react-pdf`/pdfjs)** needs the `canvas` alias in
   `next.config.ts` (both `turbopack.resolveAlias` and `webpack`) pointing at
   `canvas-stub.js`. Don't remove it. The viewer is `src/components/ui/pdf-viewer.tsx`,
-  loaded via `next/dynamic` with `ssr: false`.
-- **Dashboard data caching**: `src/lib/dashboard-context.tsx` caches analytics/
-  credits/documents in React Context (and per-document detail in a `useRef` map)
-  to avoid redundant n8n calls. Call `refreshAll()` after a successful upload.
+  loaded via `next/dynamic` with `ssr: false`; it fetches `/v1/documents/{id}/file`
+  with the bearer token and renders a blob URL (410 `FILE_REMOVED` after retention).
+- **Dashboard data**: `src/lib/dashboard-context.tsx` holds the overview and
+  document list in React Context, polls every 2 s only while a document is
+  queued/validating/extracting (skips hidden tabs), refreshes credits/analytics
+  when something leaves the in-flight set, and caches terminal-state document
+  detail. Use `useDashboardData()`; call `refreshAll()` after changes that affect
+  credits. The list loads the latest 100 (search and status filter go to the API).
+- **Invoice data is nullable everywhere**: every leaf in `InvoiceData`
+  (`src/lib/types.ts`) can be `null` (not on the document; `0` means a printed
+  zero). Render accordingly. `current_data` (= `edited_data ?? invoice_data`) is
+  what the UI shows; `invoice_data` is never overwritten.
+- **`NEXT_PUBLIC_API_URL` is build-time.** A production build without it fails
+  loudly instead of talking to localhost.
 - **`.env*` is gitignored** (including `.env.example`) — don't try to commit env
   files; document new vars in `.env.example` locally and in the README.
+- **Local `.env.local` points `DATABASE_URL` at the PRODUCTION database.** Local
+  runs use the gitignored `.env.development.local` (local Docker Postgres on
+  `127.0.0.1:5434`). The Better Auth CLI does not read that file: pass the local
+  `DATABASE_URL` explicitly, and never run `migrate` or sign-up/delete tests
+  against `.env.local`'s URL unless deploying on purpose.
+- **n8n exports** in `n8n_workflows/*.json` are gitignored reference material
+  (they hold a hardcoded webhook key and the repo is public). Nothing reads the
+  old n8n tables (`user_documents`, `user_credit_accounts`,
+  `user_credit_transactions`); they are retired and must not be recreated.
 
 ## Deployment (Coolify on Hostinger VPS)
 
-- App runs on Coolify (nixpacks build pack, port 3000) behind Traefik + Let's
-  Encrypt. Push to `main` → `.github/workflows/deploy.yml` calls the Coolify
-  deploy API (repo secrets `COOLIFY_API_TOKEN`, `COOLIFY_APP_UUID`).
-- **Build-time vs runtime env in Coolify**: every `NEXT_PUBLIC_*`, plus
+Two Coolify apps in one project, both on Traefik + Let's Encrypt:
+
+| App | Build | Port | Domain |
+|---|---|---|---|
+| Web (root) | Railpack (Coolify build pack `railpack`) | 3000 | `invoicextract.zeeshanai.cloud` |
+| API (`backend/`) | Dockerfile, base directory `/backend` | 8000 | `api.invoicextract.zeeshanai.cloud` |
+
+Plus a **MinIO** Coolify service (private bucket `invoicextract-documents`, on the
+shared `coolify` Docker network, no published ports, no domain; the API uses a
+dedicated bucket-scoped key, not the root credentials).
+
+- Push to `main` → `.github/workflows/deploy.yml` POSTs the Coolify deploy API
+  for the web app, then the API app, with retries. Repo secrets
+  `COOLIFY_API_TOKEN`, `COOLIFY_APP_UUID` (web), `COOLIFY_API_APP_UUID` (API).
+  Coolify's own auto-deploy is off. Branch pushes never deploy.
+- **Web env**: every `NEXT_PUBLIC_*` (Umami, `NEXT_PUBLIC_API_URL`), plus
   `BETTER_AUTH_URL` and `DATABASE_URL`, must be **build-time**; secrets are
-  runtime. `NIXPACKS_NODE_VERSION=22` and `NIXPACKS_INSTALL_CMD=npm install` are
-  set (the latter avoids cross-OS lockfile drift on `npm ci`).
+  runtime. The build pack is **Railpack**, so the knobs are `RAILPACK_NODE_VERSION`
+  (Node 22) and `RAILPACK_INSTALL_CMD=npm install` (avoids cross-OS lockfile drift
+  on `npm ci`); the old `NIXPACKS_*` variables are still in Coolify but ignored.
+  `next/font/google` needs outbound network at build.
+- **API env** (all runtime): `ENVIRONMENT=production`, `DATABASE_URL`,
+  `OPENAI_API_KEY`, `BETTER_AUTH_URL`, `ALLOWED_ORIGINS` (the site origin),
+  `ADMIN_API_KEY`, `STORAGE_DRIVER=s3`, `S3_ENDPOINT` (internal MinIO URL),
+  `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION`, `RESEND_API_KEY`
+  (**full access**: it must read received emails and attachments; the web app keeps
+  a send-only key), `RESEND_FROM_EMAIL`, `INBOUND_EMAIL_DOMAIN`,
+  `RESEND_WEBHOOK_SECRET`. Everything else has a default in `backend/app/config.py`.
+  Never set `JWT_DEV_PUBLIC_KEY_FILE` in production (the app refuses to start).
+- The API container runs `alembic upgrade head` on start, then one uvicorn
+  worker. Its Coolify healthcheck uses curl (installed in the image) on `/healthz`;
+  `/readyz` also checks the DB.
 - **DB host in production** is the docker0 gateway `10.0.0.1:5432` (private,
   firewall-independent), not the public IP. The DB is a shared Postgres container
-  on the same VPS; Better Auth tables are in the `invoice_extract` schema.
+  on the same VPS; Better Auth tables and the API tables share the
+  `invoice_extract` schema. Never modify Better Auth tables by hand.
+- **Resend inbound**: domain `in.invoicextract.zeeshanai.cloud` (MX + DKIM on the
+  subdomain only), `email.received` webhook to
+  `https://api.invoicextract.zeeshanai.cloud/v1/inbound/email`.
 
 ## Design system (read before any UI work)
 
@@ -138,9 +236,12 @@ Tailwind v4), errors inline (no toasts).
 
 - Match existing file style: server components stay server-side and read the
   session directly; only add `"use client"` when hooks/interactivity require it.
+  Dashboard pages are client components that read `useDashboardData()`.
 - Use the shadcn primitives in `src/components/ui/*` (Button, Input, Label,
-  Dialog, DropdownMenu, Avatar, …) rather than raw elements, and Tailwind tokens
-  (`text-muted-foreground`, `bg-card`, `border-border`, `text-primary`) over
-  hardcoded colors.
+  Checkbox, Switch, Tabs, DropdownMenu, Avatar, …) rather than raw elements, and
+  Tailwind tokens (`text-muted-foreground`, `bg-card`, `border-border`,
+  `text-primary`) over hardcoded colors.
 - Reference files as clickable paths and keep changes minimal and consistent
   with surrounding code.
+- Product-wide history and decisions for the rebuild are in `docs/plan/`
+  (`HANDOFF.md` is the log).

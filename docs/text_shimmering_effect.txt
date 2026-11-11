@@ -1,0 +1,202 @@
+You are given a task to integrate an existing React component in the codebase
+
+The codebase should support:
+- shadcn project structure  
+- Tailwind CSS
+- Typescript
+
+If it doesn't, provide instructions on how to setup project via shadcn CLI, install Tailwind or Typescript.
+
+Determine the default path for components and styles. 
+If default path for components is not /components/ui, provide instructions on why it's important to create this folder
+Copy-paste this component to /components/ui folder:
+```tsx
+shimmering-text.tsx
+"use client"
+
+import React, { useMemo, useRef } from "react"
+import { motion, useInView, UseInViewOptions } from "motion/react"
+
+import { cn } from "@/lib/utils"
+
+interface ShimmeringTextProps {
+  /** Text to display with shimmer effect */
+  text: string
+  /** Animation duration in seconds */
+  duration?: number
+  /** Delay before starting animation */
+  delay?: number
+  /** Whether to repeat the animation */
+  repeat?: boolean
+  /** Pause duration between repeats in seconds */
+  repeatDelay?: number
+  /** Custom className */
+  className?: string
+  /** Whether to start animation when component enters viewport */
+  startOnView?: boolean
+  /** Whether to animate only once */
+  once?: boolean
+  /** Margin for in-view detection (rootMargin) */
+  inViewMargin?: UseInViewOptions["margin"]
+  /** Shimmer spread multiplier */
+  spread?: number
+  /** Base text color */
+  color?: string
+  /** Shimmer gradient color */
+  shimmerColor?: string
+}
+
+export function ShimmeringText({
+  text,
+  duration = 2,
+  delay = 0,
+  repeat = true,
+  repeatDelay = 0.5,
+  className,
+  startOnView = true,
+  once = false,
+  inViewMargin,
+  spread = 2,
+  color,
+  shimmerColor,
+}: ShimmeringTextProps) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const isInView = useInView(ref, { once, margin: inViewMargin })
+
+  // Calculate dynamic spread based on text length
+  const dynamicSpread = useMemo(() => {
+    return text.length * spread
+  }, [text, spread])
+
+  // Determine if we should start animation
+  const shouldAnimate = !startOnView || isInView
+
+  return (
+    <motion.span
+      ref={ref}
+      className={cn(
+        "relative inline-block bg-[length:250%_100%,auto] bg-clip-text text-transparent",
+        "[--base-color:var(--muted-foreground)] [--shimmer-color:var(--foreground)]",
+        "[background-repeat:no-repeat,padding-box]",
+        "[--shimmer-bg:linear-gradient(90deg,transparent_calc(50%-var(--spread)),var(--shimmer-color),transparent_calc(50%+var(--spread)))]",
+        "dark:[--base-color:var(--muted-foreground)] dark:[--shimmer-color:var(--foreground)]",
+        className
+      )}
+      style={
+        {
+          "--spread": `${dynamicSpread}px`,
+          ...(color && { "--base-color": color }),
+          ...(shimmerColor && { "--shimmer-color": shimmerColor }),
+          backgroundImage: `var(--shimmer-bg), linear-gradient(var(--base-color), var(--base-color))`,
+        } as React.CSSProperties
+      }
+      initial={{
+        backgroundPosition: "100% center",
+        opacity: 0,
+      }}
+      animate={
+        shouldAnimate
+          ? {
+              backgroundPosition: "0% center",
+              opacity: 1,
+            }
+          : {}
+      }
+      transition={{
+        backgroundPosition: {
+          repeat: repeat ? Infinity : 0,
+          duration,
+          delay,
+          repeatDelay,
+          ease: "linear",
+        },
+        opacity: {
+          duration: 0.3,
+          delay,
+        },
+      }}
+    >
+      {text}
+    </motion.span>
+  )
+}
+
+
+demo.tsx
+"use client"
+
+import { useEffect, useState } from "react"
+import { AnimatePresence, motion } from "motion/react"
+import { ShimmeringText } from "@/components/ui/shimmering-text"
+
+const phrases = [
+  "Agent is thinking...",
+  "Processing your request...",
+  "Analyzing the data...",
+  "Generating response...",
+  "Almost there...",
+]
+
+export default function TextShimmerDemo() {
+  const [currentIndex, setCurrentIndex] = useState(0)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % phrases.length)
+    }, 3000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-background p-6">
+      {/* Контейнер теперь фиксированной, адаптивной ширины */}
+      <div className="w-full max-w-lg bg-card rounded-2xl border p-8 shadow-lg">
+        <div className="mb-6 text-center">
+          <h3 className="text-xl font-semibold">Text Shimmer Effect</h3>
+          <p className="text-muted-foreground text-sm">
+            Animated gradient text with automatic cycling
+          </p>
+        </div>
+
+        <div className="flex items-center justify-center rounded-lg bg-muted/10 py-10">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentIndex}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+            >
+              <ShimmeringText text={phrases[currentIndex]} />
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+```
+
+Install NPM dependencies:
+```bash
+motion
+```
+
+Implementation Guidelines
+ 1. Analyze the component structure and identify all required dependencies
+ 2. Review the component's argumens and state
+ 3. Identify any required context providers or hooks and install them
+ 4. Questions to Ask
+ - What data/props will be passed to this component?
+ - Are there any specific state management requirements?
+ - Are there any required assets (images, icons, etc.)?
+ - What is the expected responsive behavior?
+ - What is the best place to use this component in the app?
+
+Steps to integrate
+ 0. Copy paste all the code above in the correct directories
+ 1. Install external dependencies
+ 2. Fill image assets with Unsplash stock images you know exist
+ 3. Use lucide-react icons for svgs or logos if component requires them

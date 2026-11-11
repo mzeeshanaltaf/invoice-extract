@@ -9,8 +9,8 @@ Each session appends one entry at the end of its phase. Newest at the bottom. Ne
 | 1 Backend | done | 2026-11-11 | 119 tests pass (+1 S3 test, run separately); live OpenAI check ALL PASS on flex tier |
 | 2 Front end integration | done | 2026-11-11 | `npm run build` green; full local walkthrough passed against the Phase 1 backend; contact form stays on n8n (user decision) |
 | 3 Redesign | done | 2026-11-11 | `npm run build` green; 96 screenshots; axe 0 violations (16 screens x 2 themes x 1440/375); Phase 2 flows re-walked |
-| 4 Deploy | partial | 2026-11-11 | Repo side done (branch `phase-4-deploy`, deploy.yml updated). Blocked: no Coolify API token in the session; no infra created, no DNS, no push to `main` |
-| 5 Cutover | not started | | |
+| 4 Deploy | done | 2026-11-11 | API app, MinIO, DNS, jwks migration, Resend inbound all live; merged to `main` (PR #4); upload and email-in walkthroughs passed on production |
+| 5 Cutover | done | 2026-11-11 | Old tables dropped (owner approved), docs/memory/sweep done, build + pytest green; **not committed or pushed**; signed-in production flows not re-walked (see entry) |
 
 ## Entry template (copy for each phase)
 
@@ -220,15 +220,88 @@ Backend defaults (`BETTER_AUTH_URL`, `ALLOWED_ORIGINS` = `http://localhost:3000`
 - The root `.gitignore` is unchanged; `docs/plan/phase-3-screenshots/` is about 10 MB of JPEGs (commit it or drop it as you prefer).
 - Keep to DESIGN.md for any later UI: vermilion only for the single primary action and stamps, green only for extracted/verified, `.figures` for numbers, no em dashes, no `outline-none` on controls, errors inline (no toasts).
 
-### Phase 4: Deploy  (2026-11-11, session 1: partial)
-**Result:** partial. Only repo-side work is done; no shared infrastructure was changed, nothing pushed to `main`.
+### Phase 4: Deploy  (2026-11-11)
+**Result:** done. Merged to `main` as PR #4 (merge commit `42d5022`); both apps deployed that commit. Resend inbound was first skipped (the original `RESEND_API_KEY` is send-only: 401 `restricted_api_key` on `/domains`, `/webhooks` and `/emails/receiving`) and then completed later the same day with a full-access key supplied by the owner (see "Resend inbound" below).
 
-**Prior-phase check:** Phase 3 exit criteria verified in the repo: branch `phase-3-redesign` holds commits for phases 1-3, PRODUCT.md/DESIGN.md exist, `npm run build` passes (re-run this session).
+**Built / done:**
+- Coolify app `invoicextract-api`, uuid `mgqho7lywpzcemeetsquuzww`, in project InvoiceExtract (`l66wvnnarhp24do4gmsq5ew0`), repo `mzeeshanaltaf/invoice-extract`, branch `main`, Dockerfile build, base directory `/backend`, port 8000, Coolify healthcheck `/healthz`, domain `https://api.invoicextract.zeeshanai.cloud` (Let's Encrypt issued). Migrations run on container start (`0001` applied to production).
+- Web app (unchanged uuid `olum0706y4co8k8pd601uksb`): added `NEXT_PUBLIC_API_URL` (build-time), removed `N8N_WEBHOOK_BASE_URL` (prod and preview rows). `N8N_API_KEY`, `N8N_CONTACT_WEBHOOK_URL` kept.
+- DNS (Hostinger, zone `zeeshanai.cloud`): added `A api.invoicextract -> 76.13.7.106`, TTL 300. Added only; nothing overwritten.
+- MinIO: Coolify service `minio`, uuid `xblbivkonwhqvnq15tqyxguf`, container `minio-xblbivkonwhqvnq15tqyxguf`, volume `minio-data`, on the shared `coolify` network, no published ports, no domain. Private bucket `invoicextract-documents`. The API uses a **dedicated user/key** with a policy limited to that bucket (policy `invx-app`), not the root credentials. Root credentials live only in the service's compose in Coolify.
+- Better Auth `jwks` table created in the production `invoice_extract` schema (additive; the CLI listed only `jwks` fields).
+- [deploy.yml](../../.github/workflows/deploy.yml) triggers web and API apps in turn, each with the retry loop (POST, 90 s per attempt, 20 s backoff), new repo secret `COOLIFY_API_APP_UUID`. Merge ran it green.
+- [backend/Dockerfile](../../backend/Dockerfile) now installs `curl`.
 
-**Built:** branch `phase-4-deploy` (from `phase-3-redesign`); [.github/workflows/deploy.yml](../../.github/workflows/deploy.yml) now triggers both apps with the retry loop (new repo secret needed: `COOLIFY_API_APP_UUID`). Committed as 1d58c3b.
+**Deviations from plan:**
+1. Coolify's healthcheck shells out to curl/wget; the slim Python image had neither, so the first deploy was rolled back as unhealthy. Fixed by installing curl in the image.
+2. `main` had gained a commit (`1dcc94b`, POST for the Coolify deploy API: this Coolify version, 4.7.5, rejects GET). Merged into the branch; the conflict in deploy.yml was resolved keeping the two-app loop with main's timeouts.
+3. Bucket created with the `mc` binary inside the MinIO container (the `minio/mc` image could not be pulled).
+4. The API app was first deployed from branch `phase-4-deploy` to test before the merge, then switched to `main`.
+5. Untracked reference files (`n8n_workflows/*.json`, `docs/n8n_webhooks.txt`, SEO plan, shimmer notes) were **deliberately not committed**: the n8n exports contain a hardcoded webhook `api-key` and the repo is public. The staged-as-deleted `n8n_workflows/Webhooks.txt` is also untouched. Decide in Phase 5 whether to keep any of them (scrub keys first, and consider rotating the n8n webhook key).
 
-**VPS check (step 1):** disk 49% of 96G, docker-cleanup cron present (`0 3 * * 0`), `cron` active, last log 2026-11-08.
+**Resend inbound (added later 2026-11-11):**
+- Resend domain `in.invoicextract.zeeshanai.cloud` (id `107ff59f-e05f-4aa5-95c5-59d422955bcf`, us-east-1, receiving enabled, sending disabled), verified. Hostinger DNS records added, subdomain only: `MX in.invoicextract -> 10 receive.forge.rmta.net.` and `TXT resend._domainkey.in.invoicextract` (DKIM). Root-domain mail records untouched.
+- Webhook `9caff786-7461-4171-a884-bf36a72ab593`, event `email.received`, endpoint `https://api.invoicextract.zeeshanai.cloud/v1/inbound/email`. Signing secret stored only as `RESEND_WEBHOOK_SECRET` on the API app.
+- The API app's `RESEND_API_KEY` was **replaced with a full-access key**: the API must read received emails and attachments, which a send-only key cannot do. The web app keeps its send-only key. `.env.local` holds the full-access key as `RESEND_FULL_ACCESS`; suggested Resend name for it: `invoicextract-api-prod` (the account lists it as `InvoicExtract-Email-In`).
+- Test, real production path: throwaway account on `delivered+...@resend.dev`, email-in enabled in Settings, one email with the sample invoice PDF sent to its private address; the webhook was accepted, the document appeared with `source: email`, sender and subject, processed (`INV-2026-1187`, GBP 572.52) in 68 s, 2 credits used (5 -> 3); account deleted afterwards. A text-only probe to the same domain was also received and answered 200.
+- One earlier test email (with PDF) stayed at "sent" in Resend and was never delivered or received (cause unknown, Resend side; the retest and the probe both worked). The first test run also left orphan backend rows because its token expired (15 min) before cleanup; I removed them by user id. A different, unrelated signup (`sweep+...@example.test`, not mine) also appeared in Resend's send log at the time.
 
-**Blocked / not done:** `COOLIFY_API_TOKEN_ROOT` is not set in the session environment (bash or Windows user/machine env), so the API app, env vars, MinIO and the Better Auth `jwks` migration on production were not done. DNS and Resend inbound and the merge to `main` also wait for user confirmation.
+**Env vars (names only).** API app, all runtime: `ENVIRONMENT=production`, `DATABASE_URL` (host `10.0.0.1:5432`), `OPENAI_API_KEY`, `BETTER_AUTH_URL`, `ALLOWED_ORIGINS`, `ADMIN_API_KEY`, `STORAGE_DRIVER=s3`, `S3_ENDPOINT` (internal MinIO URL), `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`. Inbound: `INBOUND_EMAIL_DOMAIN=in.invoicextract.zeeshanai.cloud`, `RESEND_WEBHOOK_SECRET` (and `RESEND_API_KEY` is the full-access key). Web app: as before plus `NEXT_PUBLIC_API_URL` (build-time). GitHub repo secrets: `COOLIFY_API_TOKEN`, `COOLIFY_APP_UUID`, `COOLIFY_API_APP_UUID`.
 
-**Next session must:** get the token into the environment, confirm DNS and merge with the user, then do steps 2-5 and 7 of [phase-4-deploy.md](phase-4-deploy.md), add the `COOLIFY_API_APP_UUID` secret, run the smoke tests, and replace this entry.
+**Verification results (production, real runs):**
+- `/healthz` and `/readyz` 200 on the API domain; Let's Encrypt cert; Coolify shows `running:healthy` (API); web home 200, `/api/auth/jwks` 200. Deploy logs clean.
+- CORS: preflight from `https://invoicextract.zeeshanai.cloud` returns that origin in `Access-Control-Allow-Origin`; from `https://evil.example` the preflight is refused (400). No-token request gives 401 `UNAUTHORIZED`.
+- Full live walkthrough with a throwaway account on `delivered+...@resend.dev`: sign-up, OTP verify (code recovered from the hashed verification row), sign-in, `/api/auth/token`, API accepted the JWT, 5 signup credits, uploaded the 2-page sample invoice PDF, processed in 55 s on the flex tier (`INV-2026-1187`, GBP 572.52), credits 5 -> 3, source file streamed back from MinIO (`%PDF`), XLSX export, `DELETE /v1/account` then Better Auth user delete: 0 users, 0 documents left. An earlier attempt of the same script created a second throwaway user before failing on a missing Python module; I removed it with SQL matched by its test email only. No real user data was touched.
+- Contact form: one POST to `/api/contact` returned `{"success":true}` (n8n webhook, name "Deploy check"); the owner should see it arrive. Not verified from my side.
+- MinIO: `docker port` shows no published ports; `http://76.13.7.106:9000` from the public internet times out. DB host is `10.0.0.1`.
+- VPS after builds: disk 60% of 96G (was 49%), cron active, weekly prune entry present.
+- **Not exercised:** the browser UI on production (only the HTTP flow above), Google sign-in, the summary reply email (sent to a `resend.dev` test address, delivery not inspected), a real contact message read by a person.
+
+**Open issues / risks:**
+- **Resend inbound:** live. Remaining: real-world check by forwarding an actual invoice from a normal mailbox; confirm the summary reply reaches the owner; rename the Resend key as suggested; the full-access key now lives in Coolify (API app) and `.env.local`, so rotate it if either leaks.
+- The weekly prune now has ~2 more images to keep; disk grew 11 points from this phase's builds.
+- Single-process API: a redeploy briefly overlaps old and new containers (data-safe per Phase 1 notes).
+- Docs-only commits for this handoff are on branch `phase-4-deploy` (pushed), **not on `main`**, to avoid triggering a redeploy. Cut `phase-5-cutover` from `phase-4-deploy` (or merge it first).
+- The old `user_documents`, `user_credit_accounts`, `user_credit_transactions` tables still exist (Phase 5).
+- Gate thresholds still validated on synthetic samples only.
+
+**Next phase must know:** the live site now runs the rebuilt stack, so Phase 5's table drop is only safe with a fresh look at what still reads them (nothing in `src/` or `backend/` should). The n8n instance is still needed for the contact form only. CLAUDE.md and the memory file `invoice-extract-deployment.md` are stale (they describe nixpacks, n8n and a single app); rewrite them with the uuids above.
+
+### Phase 5: Cutover and housekeeping  (2026-11-11)
+**Result:** done, except that nothing is committed and the signed-in production flows were not re-walked. The table drop was first held back (the permission check blocked a production read, and the plan wants owner confirmation); the owner then approved it in the same session and it was run (see "Table drop" below). A follow-up correction: the web app's Coolify build pack is **Railpack**, not nixpacks (confirmed in Coolify's DB); CLAUDE.md, README and the deployment memory were fixed. Work is on branch `phase-5-cutover` (cut from `phase-4-deploy`, which carries the Phase 4 handoff docs that are not on `main`). **Nothing committed or pushed** (not requested).
+
+**Built / changed:**
+- [CLAUDE.md](../../CLAUDE.md) rewritten: two deployables, browser → FastAPI with Better Auth JWT, `user_id` invariant, async upload pipeline, MinIO/retention/email-in, no signup hook, two-step account deletion, contact form still on n8n, Coolify layout (web, API, MinIO, workflow secrets, env split), gotchas (nullable invoice data, `NEXT_PUBLIC_API_URL`, `.env.local` points at production, no `jwtClient()`), pointer to DESIGN.md/PRODUCT.md and `docs/plan/`. Commands cover web, backend run/test/migrate.
+- [README.md](../../README.md) rewritten (features, architecture diagram, stack, 4-step local setup, env block, project structure, API table, troubleshooting, deployment). [backend/.env.example](../../backend/.env.example) gained a note that `RESEND_API_KEY` must be full access. The root `.env.example` was already current (checked: no `N8N_WEBHOOK_BASE_URL`, has `NEXT_PUBLIC_API_URL`); both are gitignored.
+- Memory (`C:\Users\Zeeshan\.claude\projects\...\memory\`): `invoice-extract-deployment.md` and `invoice-extract-better-auth.md` rewritten with the uuids, MinIO, API domain, Resend inbound, JWT plugin; `invoice-extract-local-env.md` extended; `MEMORY.md` index lines updated.
+- Dead files removed (staged deletions): `IMPLEMENTATION_PLAN.md` (Clerk/n8n era), `src/components/ui/{shimmering-text,progress,separator,tooltip}.tsx` (unreferenced). `hero_section_bg.png` was already gone. Kept `card.tsx` and `dialog.tsx` (unreferenced today but covered by DESIGN.md). All npm dependencies and all backend requirements are still imported somewhere.
+- [.gitignore](../../.gitignore): `/n8n_workflows/*.json` added. The untracked n8n exports hold a hardcoded webhook key and the repo is public, so they stay on disk as reference but can no longer be committed by a stray `git add .` (the `ship` skill does that).
+
+**Deviations from plan:** none to the plan; the drop is deferred, not changed.
+
+**Env vars / secrets added:** none.
+
+**Verification results (real runs):**
+- Pre-flight, Phase 4 exit criteria checked in the repo, not just the log: phase-4 file boxes ticked, `origin/main` is the PR #4 merge `42d5022`, `deploy.yml` triggers both apps, Dockerfile installs curl. Production: `api/healthz` 200, `api/readyz` 200, site home 200, `/api/auth/jwks` 200, unauthenticated `/v1/credits` 401, `/docs` 200, `/v1/meta/limits` shows inbound enabled on `in.invoicextract.zeeshanai.cloud`.
+- `grep` across `src/`, `backend/`, `.github/`, root docs for the old table names: nothing in `src/` or `backend/app` queries `user_documents`, `user_credit_accounts` or `user_credit_transactions`. Only hits: the migration test's stand-in tables (`backend/tests`), the API's overview field named `user_documents` (not the table), docs, and the n8n exports.
+- `npm run build`: **pass**. Backend `pytest`: **119 passed, 1 skipped** (S3 test, needs MinIO), after starting `invoicextract-dev-postgres` and stopped again afterwards.
+- Stale sweep (`n8n|Mistral|InvoiceExtract|N8N_|clerk|hero_section_bg`) over source and docs: remaining hits are intentional (contact route `N8N_*` and `source: "invoiceextract"`, CLAUDE.md/README contact-form notes, "replaces Clerk/n8n" history notes) or untracked owner files (`docs/SEO Plan - Invoice Extract.md` still says Clerk and `hero_section_bg.png`; `docs/n8n_webhooks.txt`; `.claude/settings.local.json` has an old `@clerk/nextjs` allow rule).
+- CLAUDE.md/README commands spot-checked: `npm run build`, backend `pytest` and the production URLs/endpoints they name were run or curled; `/docs`, `/v1/meta/limits` and the healthchecks exist on production. Not run: the full local two-service walkthrough (unchanged since Phase 3).
+**Table drop (run 2026-11-11 with the owner's explicit approval).**
+- Looked first (read-only): `invoice_extract` held the three old tables with 10 documents, 10 credit accounts and 20 transactions (pre-rebuild dummy data), plus Better Auth tables and the new API tables. The new tables had 0 rows and Better Auth had 1 user. The only foreign keys on the old tables ran between the three of them. **The shared database has same-named tables in other projects' schemas (`document_genie`, `resume_match`, `fit_fusion`); the drop was fully schema-qualified and those are untouched.**
+- Ran one statement, no CASCADE: `DROP TABLE invoice_extract.user_credit_transactions, invoice_extract.user_credit_accounts, invoice_extract.user_documents`.
+- After: `invoice_extract` contains `account, alembic_version, credit_accounts, credit_transactions, documents, inbound_emails, jwks, session, user, user_settings, verification`. Row counts unchanged: `user` 1, `jwks` 1, `session` 0, new tables 0.
+- Production check after the drop (HTTP only): API `/healthz` 200, `/readyz` 200 (DB check), `/v1/meta/limits` 200; site `/`, `/sign-in`, `/api/auth/jwks`, `/api/auth/get-session` 200; API container logs for the last 30 minutes contain no errors or tracebacks.
+- **Not re-walked:** the signed-in flows (login, upload, documents list, credits). Nothing in the API or web app references the dropped tables (grep above) and `/readyz` passes, so a regression is not expected, but do one real upload when convenient.
+
+**Open issues / risks:**
+- Nothing is committed. The working tree holds: README, CLAUDE.md, `.gitignore`, the HANDOFF and phase-5 file edits, and the staged deletions listed above (`backend/.env.example` is gitignored, so it has no diff). `n8n_workflows/Webhooks.txt` is still shown as deleted in the working tree and the untracked owner files (SEO plan, shimmer notes, `docs/n8n_webhooks.txt`) were left alone. If you commit, pushing the branch does not deploy; merging to `main` does.
+- The n8n instance is still required for the contact form only. The webhook key in the old n8n exports was in the repo's working tree and was never committed, but consider rotating it if those files ever left this machine.
+- The full-access Resend key note from Phase 4 still stands (rename it, rotate if leaked). Gate thresholds are still tuned on synthetic documents.
+
+**Candidate next projects** (from [00-overview.md](00-overview.md) "Out of scope"):
+1. Paid credit packs (Stripe or Lemon Squeezy) plus the "ask us for more" copy it would replace.
+2. Public API keys for developers (the API already has the shape; needs key issuance, hashing and per-key limits).
+3. Push to accounting tools / "processed" webhooks.
+4. Off-box MinIO backups (the bucket is the only copy of source files; extracted data lives in Postgres).
+Smaller follow-ups from earlier phases: pagination for the 100-item document list, dark-mode OG cards, retune gate thresholds on real bookkeeper documents, a real inbound email from a normal mailbox, review the privacy-policy and landing-page product claims listed in the Phase 3 entry.
